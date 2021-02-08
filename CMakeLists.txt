@@ -7,8 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
-option(CMAKELISTSEDIT_ENABLE_UNITTESTS "Build unit tests" ON)
-option(CMAKELISTSEDIT_ENABLE_CODECOVERAGE "Build unit tests with code coverage" ON)
+option(CMLE_ENABLE_SAMPLECMD "Build the sample command line utility" ON)
+option(CMLE_ENABLE_UNITTESTS "Build unit tests" ON)
+option(CMLE_ENABLE_CODECOVERAGE "Build unit tests with code coverage" OFF)
 
 include(SingleSourceGroup)
 
