@@ -14,7 +14,7 @@ target_link_libraries(main PUBLIC
 )
 
 target_include_directories(main INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 single_source_group(main)
