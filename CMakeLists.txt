@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.13)
+
+project(CMakeListsEdit LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_LIST_DIR}/cmake)
+
+option(CMAKELISTSEDIT_ENABLE_UNITTESTS "Build unit tests" ON)
+option(CMAKELISTSEDIT_ENABLE_CODECOVERAGE "Build unit tests with code coverage" ON)
+
+include(SingleSourceGroup)
+
+find_package(Qt5 COMPONENTS Core REQUIRED)
+set(CMAKE_AUTOMOC ON)
+target_compile_definitions(Qt5::Core INTERFACE QT_NO_CAST_FROM_ASCII QT_NO_CAST_TO_ASCII)
+
+add_subdirectory(src)
+
+if(CMAKELISTSEDIT_ENABLE_UNITTESTS)
+    enable_testing()
+
+    find_package(Qt5 COMPONENTS Test REQUIRED)
+
+    add_subdirectory(tests)
+endif()
