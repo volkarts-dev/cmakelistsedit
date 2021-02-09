@@ -18,6 +18,8 @@ namespace {
 struct Options
 {
     QString command;
+    QString target;
+    QString cmlFile;
     QStringList fileNames;
     bool sort = false;
 };
@@ -33,12 +35,25 @@ enum class CommandLineParseResult
 CommandLineParseResult parseCommandLine(QCommandLineParser& parser, Options& options, QString& errorMessage)
 {
     // config
-    parser.addPositionalArgument(QStringLiteral("command"), QStringLiteral("subcommand"));
+    parser.addOptions({
+                {QStringLiteral("add"), QStringLiteral("Add a file name to cmake target (command).")},
+                {QStringLiteral("del"), QStringLiteral("Delete a file name from cmake target (command).")},
+                {QStringLiteral("ren"), QStringLiteral("Rename a file name from cmake target (command).")},
 
-    parser.addPositionalArgument(QStringLiteral("files"), QStringLiteral("files"), QStringLiteral("files..."));
+                {{QStringLiteral("t"), QStringLiteral("target")},
+                 QStringLiteral("The cmake target name for the file operations (required)."),
+                 QStringLiteral("target")},
 
-    QCommandLineOption sortOption{{QStringLiteral("sort")}, QStringLiteral("Sort section after adding/renaming file")};
-    parser.addOption(sortOption);
+                {{QStringLiteral("f"), QStringLiteral("file")},
+                 QStringLiteral("Path to the CMakeLists.txt file (required)."),
+                 QStringLiteral("file")},
+
+                {{QStringLiteral("s"), QStringLiteral("sort")},
+                 QStringLiteral("Sort section after adding/removing/renaming file.")},
+                });
+
+    parser.addPositionalArgument(QStringLiteral("file-names"), QStringLiteral("File names to add/remove/rename"),
+                                 QStringLiteral("<files-name>..."));
 
     // parse
     if (!parser.parse(QCoreApplication::arguments()))
@@ -47,34 +62,61 @@ CommandLineParseResult parseCommandLine(QCommandLineParser& parser, Options& opt
         return CommandLineParseResult::Error;
     }
 
-    const QStringList positionalArguments = parser.positionalArguments();
-    if (positionalArguments.isEmpty()) {
-        errorMessage = QStringLiteral("No Command specified");
+    for (const auto& cmd : QStringList{QStringLiteral("add"), QStringLiteral("del"), QStringLiteral("ren")})
+    {
+        if (parser.isSet(cmd))
+        {
+            if (!options.command.isEmpty())
+            {
+                errorMessage = QStringLiteral("Only one command can be specified");
+                return CommandLineParseResult::Error;
+            }
+
+            options.command = cmd;
+        }
+    }
+
+    if (options.command.isEmpty())
+    {
+        errorMessage = QStringLiteral("No command specified");
         return CommandLineParseResult::Error;
     }
-    options.command = positionalArguments.first();
+
+    options.target = parser.value(QStringLiteral("target"));
+    if (options.target.isEmpty())
+    {
+        errorMessage = QStringLiteral("No target specified");
+        return CommandLineParseResult::Error;
+    }
+
+    options.cmlFile = parser.value(QStringLiteral("file"));
+    if (options.cmlFile.isEmpty())
+    {
+        errorMessage = QStringLiteral("No CMakeLists.txt file specified");
+        return CommandLineParseResult::Error;
+    }
+
+    const QStringList positionalArguments = parser.positionalArguments();
 
     if (options.command == QLatin1String("add") || options.command == QLatin1String("del"))
     {
-        if (positionalArguments.size() <= 1)
+        if (positionalArguments.size() < 1)
         {
-            errorMessage = QStringLiteral("No files specified");
+            errorMessage = QStringLiteral("No file names specified");
+            return CommandLineParseResult::Error;
         }
-        for (int i = 1; i < positionalArguments.size(); ++i)
-        {
-            options.fileNames << positionalArguments[i];
-        }
+
+        options.fileNames = positionalArguments;
     }
     else if (options.command == QLatin1String("ren"))
     {
-        if (positionalArguments.size() != 3)
+        if (positionalArguments.size() != 2)
         {
-            errorMessage = QStringLiteral("Specify a source and a target file");
+            errorMessage = QStringLiteral("Specify a source and a target file name");
+            return CommandLineParseResult::Error;
         }
-        for (int i = 1; i < positionalArguments.size(); ++i)
-        {
-            options.fileNames << positionalArguments[i];
-        }
+
+        options.fileNames = positionalArguments;
     }
     else
     {
@@ -82,7 +124,7 @@ CommandLineParseResult parseCommandLine(QCommandLineParser& parser, Options& opt
         return CommandLineParseResult::Error;
     }
 
-    options.sort = parser.isSet(sortOption);
+    options.sort = parser.isSet(QStringLiteral("sort"));
 
     return CommandLineParseResult::Ok;
 }
@@ -92,7 +134,7 @@ CommandLineParseResult parseCommandLine(QCommandLineParser& parser, Options& opt
 int main(int argc, char* argv[])
 {
     QCoreApplication::setApplicationVersion(QStringLiteral("1.0"));
-    QCoreApplication::setApplicationName(QStringLiteral("CMakeFileEdit sandbox"));
+    QCoreApplication::setApplicationName(QStringLiteral("CMakeFileEdit sample command"));
 
     QCoreApplication app(argc, argv);
 
@@ -115,7 +157,7 @@ int main(int argc, char* argv[])
             Q_UNREACHABLE();
     }
 
-    DefaultFileBuffer fileBuffer(QStringLiteral("src/parser/CMakeLists.txt"));
+    DefaultFileBuffer fileBuffer(options.cmlFile);
     if (!fileBuffer.load())
     {
         std::cerr << "Could not open CMakeLists file" << std::endl;
@@ -136,18 +178,18 @@ int main(int argc, char* argv[])
     {
         for (const auto& f : qAsConst(options.fileNames))
         {
-            cmakeListsFile.addSourceFile(QStringLiteral("parser"), f);
+            cmakeListsFile.addSourceFile(options.target, f);
         }
     }
     else if (options.command == QLatin1String("ren"))
     {
-        cmakeListsFile.renameSourceFile(QStringLiteral("parser"), options.fileNames[0], options.fileNames[1]);
+        cmakeListsFile.renameSourceFile(options.target, options.fileNames[0], options.fileNames[1]);
     }
     if (options.command == QLatin1String("del"))
     {
         for (const auto& f : qAsConst(options.fileNames))
         {
-            cmakeListsFile.removeSourceFile(QStringLiteral("parser"), f);
+            cmakeListsFile.removeSourceFile(options.target, f);
         }
     }
 
