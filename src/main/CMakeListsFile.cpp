@@ -22,6 +22,9 @@ namespace {
 
 const QLoggingCategory CMAKE{"CMAKE"};
 
+ // TODO make this configurable or copy from common separators
+const QString kDefaultSeparator = QStringLiteral("\n    ");
+
 class RawDataReader
 {
 public:
@@ -134,11 +137,11 @@ parser::CMakeFunctionArgument CMakeListsFile::sectionTypeArgument(CMakeListsFile
     switch (type)
     {
     case SectionType::Private:
-        return {QStringLiteral("PRIVATE"), false};
+        return {QStringLiteral("PRIVATE"), false, kDefaultSeparator};
     case SectionType::Public:
-        return {QStringLiteral("PUBLIC"), false};
+        return {QStringLiteral("PUBLIC"), false, kDefaultSeparator};
     case SectionType::Interface:
-        return {QStringLiteral("INTERFACE"), false};
+        return {QStringLiteral("INTERFACE"), false, kDefaultSeparator};
     case SectionType::Invalid:
     default:
         return {};
@@ -164,18 +167,12 @@ bool CMakeListsFile::save()
 
 bool CMakeListsFile::addSourceFile(const QString& target, const QString& fileName)
 {
-    if (!sourcesBlocksIndex_.contains(target))
-    {
-        qCWarning(CMAKE) << "Target" << target << "not found in CMakeLists file" << fileBuffer_->fileName();
-        return false;
-    }
-
     auto& sourcesBlock = ensureSourcesBlock(target);
     auto section = sourcesBlock.defaultInsertSection;
 
     QString separator;
     if (section->fileNames.isEmpty())
-        separator = QStringLiteral("\n    "); // TODO make this configurable or copy from common separators
+        separator = kDefaultSeparator;
     else
         separator = section->fileNames.last().separator();
 

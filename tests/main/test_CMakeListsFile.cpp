@@ -197,12 +197,18 @@ private slots:
 
     void addToNoSourceBlock()
     {
-        QSKIP("Creating source block is not implemented yet in CMakeListsFile");
+        CMAKE_FILE("no_source_block.cmake");
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
+        file.save();
+        COMPARE_FILE("no_source_block-add.cmake");
     }
 
     void addToEmptySourceBlock()
     {
-        QSKIP("Creating source block is not implemented yet in CMakeListsFile");
+        CMAKE_FILE("empty_source_block.cmake");
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
+        file.save();
+        COMPARE_FILE("empty_source_block-add.cmake");
     }
 
     void addInInvalid()
