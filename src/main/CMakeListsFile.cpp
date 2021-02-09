@@ -20,7 +20,7 @@ namespace cmle {
 
 namespace {
 
-const QLoggingCategory CMAKE{"CMAKE"};
+const QLoggingCategory CMAKE{"com.va.cmakelistsedit"};
 
  // TODO make this configurable or copy from common separators
 const QString kDefaultSeparator = QStringLiteral("\n    ");
