@@ -47,7 +47,7 @@ private slots:
         QVERIFY(fileBuffer.load());
         QVERIFY(!fileBuffer.isDirty());
 
-        QCOMPARE(fileBuffer.content().size(), 305);
+        QCOMPARE(fileBuffer.content().size(), 309);
 
         QCOMPARE(checksum(fileBuffer.content()), fileChecksum(filePath));
     }
