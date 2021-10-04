@@ -7,10 +7,13 @@
  * version 3 as published by the Free Software Foundation.
  */
 
-#include "DefaultFileBuffer.h"
+#include "StandardFileBuffer.h"
 
 #include <QFile>
 #include <QLoggingCategory>
+
+
+namespace cmle {
 
 namespace {
 
@@ -18,17 +21,17 @@ const QLoggingCategory CMAKE{"CMAKE"};
 
 } // namespace
 
-DefaultFileBuffer::DefaultFileBuffer(const QString& fileName) :
+StandardFileBuffer::StandardFileBuffer(const QString& fileName) :
     dirty_{false}
 {
     setFileName(fileName);
 }
 
-DefaultFileBuffer::~DefaultFileBuffer()
+StandardFileBuffer::~StandardFileBuffer()
 {
 }
 
-bool DefaultFileBuffer::load()
+bool StandardFileBuffer::load()
 {
     Q_ASSERT(!fileName_.isEmpty());
 
@@ -68,7 +71,7 @@ bool DefaultFileBuffer::load()
     return true;
 }
 
-bool DefaultFileBuffer::save()
+bool StandardFileBuffer::save()
 {
     QFile file(fileName_);
     if (!file.open(QFile::WriteOnly | QFile::Truncate))
@@ -88,9 +91,11 @@ bool DefaultFileBuffer::save()
     return true;
 }
 
-void DefaultFileBuffer::setContent(const QByteArray& content)
+void StandardFileBuffer::setContent(const QByteArray& content)
 {
     fileContent_ = content;
     dirty_ = true;
     emit changed();
 }
+
+} // namespace cmle

@@ -6,6 +6,8 @@ target_sources(main PRIVATE
     CMakeListsFile.h
     FileBuffer.cpp
     FileBuffer.h
+    StandardFileBuffer.cpp
+    StandardFileBuffer.h
 )
 
 target_link_libraries(main PUBLIC

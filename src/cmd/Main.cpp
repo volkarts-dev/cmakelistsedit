@@ -10,7 +10,7 @@
 #include <iostream>
 
 #include "main/CMakeListsFile.h"
-#include "DefaultFileBuffer.h"
+#include "main/StandardFileBuffer.h"
 #include <QCommandLineParser>
 
 namespace {
@@ -157,7 +157,7 @@ int main(int argc, char* argv[])
             Q_UNREACHABLE();
     }
 
-    DefaultFileBuffer fileBuffer(options.cmlFile);
+    cmle::StandardFileBuffer fileBuffer(options.cmlFile);
     if (!fileBuffer.load())
     {
         std::cerr << "Could not open CMakeLists file" << std::endl;

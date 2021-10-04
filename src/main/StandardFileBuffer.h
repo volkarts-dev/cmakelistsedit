@@ -9,17 +9,19 @@
 
 #pragma once
 
-#include "main/FileBuffer.h"
+#include "cmakelistsedit/FileBuffer.h"
 #include <QString>
 #include <QObject>
 
-class DefaultFileBuffer : public QObject, public cmle::FileBuffer
+namespace cmle {
+
+class StandardFileBuffer : public QObject, public cmle::FileBuffer
 {
     Q_OBJECT
 
 public:
-    explicit DefaultFileBuffer(const QString& fileName = {});
-    ~DefaultFileBuffer() override;
+    explicit StandardFileBuffer(const QString& fileName = {});
+    ~StandardFileBuffer() override;
 
     bool isDirty() const { return dirty_; }
 
@@ -40,3 +42,5 @@ private:
     QByteArray fileContent_;
     bool dirty_;
 };
+
+} // namespace cmle
