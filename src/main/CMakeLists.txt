@@ -15,7 +15,7 @@ target_link_libraries(main PUBLIC
     parser
 )
 
-target_include_directories(main INTERFACE
+target_include_directories(main PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 

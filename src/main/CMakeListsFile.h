@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "parser/CMakeFileContent.h"
+#include "cmakelistsedit/parser/CMakeFileContent.h"
 #include <QMap>
 #include <QObject>
 
