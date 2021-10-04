@@ -15,7 +15,6 @@ include(SingleSourceGroup)
 
 find_package(Qt5 COMPONENTS Core REQUIRED)
 set(CMAKE_AUTOMOC ON)
-target_compile_definitions(Qt5::Core INTERFACE QT_NO_CAST_FROM_ASCII QT_NO_CAST_TO_ASCII)
 
 add_subdirectory(src)
 
