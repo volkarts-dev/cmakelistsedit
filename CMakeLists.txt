@@ -19,7 +19,7 @@ target_compile_definitions(Qt5::Core INTERFACE QT_NO_CAST_FROM_ASCII QT_NO_CAST_
 
 add_subdirectory(src)
 
-if(CMAKELISTSEDIT_ENABLE_UNITTESTS)
+if(CMLE_ENABLE_UNITTESTS)
     enable_testing()
 
     find_package(Qt5 COMPONENTS Test REQUIRED)

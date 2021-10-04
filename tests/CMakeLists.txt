@@ -15,7 +15,7 @@ macro(simple_test name)
     single_source_group(test_${name})
 endmacro()
 
-if(CMAKELISTSEDIT_ENABLE_CODECOVERAGE)
+if(CMLE_ENABLE_CODECOVERAGE)
     include(CodeCoverage)
     append_coverage_compiler_flags()
     setup_target_for_coverage_lcov(
