@@ -13,6 +13,7 @@
 #include "parser/CMakeListsParser.h"
 #include <QFile>
 #include <QLoggingCategory>
+#include <QRegularExpression>
 #include <algorithm>
 #include <iostream>
 
@@ -65,8 +66,8 @@ struct FileNameCompare
 {
     inline bool operator()(const parser::CMakeFunctionArgument& lhs, const parser::CMakeFunctionArgument& rhs)
     {
-        bool lhsHasSlash = lhs.value().contains(QRegExp(QStringLiteral("/\\")));
-        bool rhsHasSlash = rhs.value().contains(QRegExp(QStringLiteral("/\\")));
+        bool lhsHasSlash = lhs.value().contains(QRegularExpression(QStringLiteral("[/\\\\]")));
+        bool rhsHasSlash = rhs.value().contains(QRegularExpression(QStringLiteral("[/\\\\]")));
         if (lhsHasSlash && !rhsHasSlash)
             return true;
         else if (!lhsHasSlash && rhsHasSlash)
