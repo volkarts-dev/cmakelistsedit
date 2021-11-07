@@ -110,9 +110,9 @@ CMakeListsFile::CMakeListsFile(FileBuffer* fileBuffer, QObject* parent) :
     fileBuffer_(fileBuffer),
     loaded_{false},
     dirty_{false},
-    insertBlockPolicy_(InsertBlockPolicy::First),
-    defaultSectionType_(SectionType::Private),
-    sortSectionPolicy_{SortSectionPolicy::NoSort}
+    insertBlockPolicy_{InsertBlockPolicy::First},
+    defaultSectionType_{SectionType::Private},
+    sortSectionPolicy_{SortSectionPolicy::NoSort},
 {
     loaded_ = read();
 }
@@ -121,7 +121,7 @@ CMakeListsFile::~CMakeListsFile()
 {
 }
 
-CMakeListsFile::SectionType CMakeListsFile::sectionType(const parser::CMakeFunctionArgument& arg)
+SectionType CMakeListsFile::sectionType(const parser::CMakeFunctionArgument& arg)
 {
     if (arg.value().compare(QLatin1String("PRIVATE"), Qt::CaseInsensitive) == 0)
         return SectionType::Private;
@@ -133,7 +133,7 @@ CMakeListsFile::SectionType CMakeListsFile::sectionType(const parser::CMakeFunct
         return SectionType::Invalid;
 }
 
-parser::CMakeFunctionArgument CMakeListsFile::sectionTypeArgument(CMakeListsFile::SectionType type)
+parser::CMakeFunctionArgument CMakeListsFile::sectionTypeArgument(SectionType type)
 {
     switch (type)
     {

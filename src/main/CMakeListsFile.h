@@ -17,30 +17,31 @@ namespace cmle {
 
 class FileBuffer;
 
+enum class InsertBlockPolicy
+{
+    First,
+    Last,
+};
+
+enum class SortSectionPolicy
+{
+    NoSort,
+    Sort,
+};
+
+enum class SectionType
+{
+    Invalid,
+    Private,
+    Public,
+    Interface,
+};
+
 class CMakeListsFile : public QObject
 {
     Q_OBJECT
 
 public:
-    enum class InsertBlockPolicy
-    {
-        First,
-        Last,
-    };
-
-    enum class SortSectionPolicy
-    {
-        NoSort,
-        Sort,
-    };
-
-    enum class SectionType
-    {
-        Invalid,
-        Private,
-        Public,
-        Interface,
-    };
 
 public:
     CMakeListsFile(FileBuffer* fileBuffer, QObject* parent = nullptr);
