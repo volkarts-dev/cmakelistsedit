@@ -20,7 +20,8 @@ class StandardFileBuffer : public QObject, public cmle::FileBuffer
     Q_OBJECT
 
 public:
-    explicit StandardFileBuffer(const QString& fileName = {});
+    explicit StandardFileBuffer(QObject* parent = nullptr);
+    StandardFileBuffer(const QString& fileName, QObject* parent = nullptr);
     ~StandardFileBuffer() override;
 
     bool isDirty() const { return dirty_; }

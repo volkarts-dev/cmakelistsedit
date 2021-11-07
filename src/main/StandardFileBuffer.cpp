@@ -21,7 +21,13 @@ const QLoggingCategory CMAKE{"CMAKE"};
 
 } // namespace
 
-StandardFileBuffer::StandardFileBuffer(const QString& fileName) :
+StandardFileBuffer::StandardFileBuffer(QObject* parent) :
+    StandardFileBuffer({}, parent)
+{
+}
+
+StandardFileBuffer::StandardFileBuffer(const QString& fileName, QObject* parent) :
+    QObject(parent),
     dirty_{false}
 {
     setFileName(fileName);

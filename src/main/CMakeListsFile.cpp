@@ -107,7 +107,7 @@ auto countRows(const QString& string)
 
 CMakeListsFile::CMakeListsFile(FileBuffer* fileBuffer, QObject* parent) :
     QObject(parent),
-    fileBuffer_(fileBuffer),
+    fileBuffer_{fileBuffer},
     loaded_{false},
     dirty_{false},
     insertBlockPolicy_{InsertBlockPolicy::First},
