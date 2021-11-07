@@ -113,6 +113,7 @@ CMakeListsFile::CMakeListsFile(FileBuffer* fileBuffer, QObject* parent) :
     insertBlockPolicy_{InsertBlockPolicy::First},
     defaultSectionType_{SectionType::Private},
     sortSectionPolicy_{SortSectionPolicy::NoSort},
+    blockCreationPolicy_{BlockCreationPolicy::Create}
 {
     loaded_ = read();
 }
@@ -168,6 +169,12 @@ bool CMakeListsFile::save()
 
 bool CMakeListsFile::addSourceFile(const QString& target, const QString& fileName)
 {
+    if (!sourcesBlocksIndex_.contains(target))
+    {
+        if (blockCreationPolicy_ == BlockCreationPolicy::NoCreate)
+            return false;
+    }
+
     auto& sourcesBlock = ensureSourcesBlock(target);
     auto section = sourcesBlock.defaultInsertSection;
 

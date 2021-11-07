@@ -37,6 +37,12 @@ enum class SectionType
     Interface,
 };
 
+enum class BlockCreationPolicy
+{
+    Create,
+    NoCreate,
+};
+
 class CMakeListsFile : public QObject
 {
     Q_OBJECT
@@ -56,6 +62,7 @@ public:
         defaultSectionType_ = type;
     }
     void setSortSectionPolicy(SortSectionPolicy sortSectionPolicy) { sortSectionPolicy_ = sortSectionPolicy; }
+    void setBlockCreationPolicy(BlockCreationPolicy blockCreationPolicy) { blockCreationPolicy_ = blockCreationPolicy; }
 
     bool isLoaded() const { return loaded_; }
     bool isDirty() const { return dirty_; }
@@ -108,6 +115,7 @@ private:
     InsertBlockPolicy insertBlockPolicy_;
     SectionType defaultSectionType_;
     SortSectionPolicy sortSectionPolicy_;
+    BlockCreationPolicy blockCreationPolicy_;
 
     friend class CMakeListsFileTest;
 };
