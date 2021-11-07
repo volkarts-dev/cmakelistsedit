@@ -15,6 +15,7 @@
 #include <QMetaType>
 #include <QSharedDataPointer>
 #include <QVector>
+#include <limits>
 
 namespace cmle { namespace parser {
 
