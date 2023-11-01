@@ -557,12 +557,6 @@ Modify cmListFileLexer.c:
 
 /* IWYU pragma: no_forward_declare yyguts_t */
 
-#ifdef _WIN32
-#define KWSYS_ENCODING_DEFAULT_CODEPAGE CP_ACP
-#include "EncodingC.c"
-#define cmsysEncoding_DupToWide kwsysEncoding_DupToWide
-#endif
-
 /* Setup the proper cmListFileLexer_yylex declaration.  */
 #define YY_EXTRA_TYPE cmListFileLexer*
 #define YY_DECL int cmListFileLexer_yylex (yyscan_t yyscanner, cmListFileLexer* lexer)
@@ -2538,7 +2532,6 @@ cmListFileLexer* cmListFileLexer_New(void)
 /*--------------------------------------------------------------------------*/
 void cmListFileLexer_Delete(cmListFileLexer* lexer)
 {
-  cmListFileLexer_SetFileName(lexer, 0, 0);
   free(lexer);
 }
 
@@ -2574,32 +2567,6 @@ static cmListFileLexer_BOM cmListFileLexer_ReadBOM(FILE* f)
     return cmListFileLexer_BOM_Broken;
   }
   return cmListFileLexer_BOM_None;
-}
-
-/*--------------------------------------------------------------------------*/
-int cmListFileLexer_SetFileName(cmListFileLexer* lexer, const char* name,
-                                cmListFileLexer_BOM* bom)
-{
-  int result = 1;
-  cmListFileLexerDestroy(lexer);
-  if (name) {
-#ifdef _WIN32
-    wchar_t* wname = cmsysEncoding_DupToWide(name);
-    lexer->file = _wfopen(wname, L"rb");
-    free(wname);
-#else
-    lexer->file = fopen(name, "rb");
-#endif
-    if (lexer->file) {
-      if (bom) {
-        *bom = cmListFileLexer_ReadBOM(lexer->file);
-      }
-    } else {
-      result = 0;
-    }
-  }
-  cmListFileLexerInit(lexer);
-  return result;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2641,7 +2608,6 @@ cmListFileLexer_Token* cmListFileLexer_Scan(cmListFileLexer* lexer)
   if (cmListFileLexer_yylex(lexer->scanner, lexer)) {
     return &lexer->token;
   } else {
-    cmListFileLexer_SetFileName(lexer, 0, 0);
     return 0;
   }
 }

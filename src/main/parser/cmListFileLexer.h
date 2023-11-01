@@ -48,8 +48,6 @@ extern "C" {
 #endif
 
 cmListFileLexer* cmListFileLexer_New(void);
-int cmListFileLexer_SetFileName(cmListFileLexer*, const char*,
-                                cmListFileLexer_BOM* bom);
 int cmListFileLexer_SetString(cmListFileLexer*, const char*);
 int cmListFileLexer_UseString(cmListFileLexer*, const char*, int length);
 cmListFileLexer_Token* cmListFileLexer_Scan(cmListFileLexer*);
