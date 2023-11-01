@@ -9,8 +9,8 @@
 
 #include <iostream>
 
-#include "main/CMakeListsFile.h"
-#include "main/StandardFileBuffer.h"
+#include <cmle/CMakeListsFile.h>
+#include <cmle/StandardFileBuffer.h>
 #include <QCommandLineParser>
 
 namespace {
@@ -171,8 +171,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    cmakeListsFile.setSortSectionPolicy(options.sort ? cmle::CMakeListsFile::SortSectionPolicy::Sort :
-                                                       cmle::CMakeListsFile::SortSectionPolicy::NoSort);
+    cmakeListsFile.setSortSectionPolicy(options.sort ? cmle::SortSectionPolicy::Sort :
+                                                       cmle::SortSectionPolicy::NoSort);
 
     if (options.command == QLatin1String("add"))
     {

@@ -6,13 +6,16 @@ include_directories(
 macro(simple_test name)
     add_executable(test_${name} test_${name}.cpp)
 
-    target_link_libraries(test_${name} PRIVATE Qt5::Test ${ARGN})
+    target_link_libraries(test_${name} PRIVATE
+        project_config
+        qt_config
+        Qt5::Test
+        ${ARGN}
+    )
 
     target_compile_definitions(test_${name} PRIVATE
         RESOURCE_DIR="${CMAKE_SOURCE_DIR}/tests/res"
     )
-
-    single_source_group(test_${name})
 endmacro()
 
 if(CMLE_ENABLE_CODECOVERAGE)

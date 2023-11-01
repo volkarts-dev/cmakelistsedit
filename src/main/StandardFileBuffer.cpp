@@ -7,11 +7,10 @@
  * version 3 as published by the Free Software Foundation.
  */
 
-#include "StandardFileBuffer.h"
+#include "include/cmle/StandardFileBuffer.h"
 
 #include <QFile>
 #include <QLoggingCategory>
-
 
 namespace cmle {
 
@@ -21,6 +20,26 @@ const QLoggingCategory CMAKE{"CMAKE"};
 
 } // namespace
 
+// ********************************************************
+
+class StandardFileBufferPrivate
+{
+public:
+    StandardFileBufferPrivate(StandardFileBuffer* q) :
+        q_ptr{q}
+    {
+    }
+
+    QString fileName{};
+    QByteArray fileContent{};
+    bool dirty{};
+
+private:
+    StandardFileBuffer* q_ptr;
+};
+
+// ********************************************************
+
 StandardFileBuffer::StandardFileBuffer(QObject* parent) :
     StandardFileBuffer({}, parent)
 {
@@ -28,7 +47,7 @@ StandardFileBuffer::StandardFileBuffer(QObject* parent) :
 
 StandardFileBuffer::StandardFileBuffer(const QString& fileName, QObject* parent) :
     QObject(parent),
-    dirty_{false}
+    d_ptr{new StandardFileBufferPrivate{this}}
 {
     setFileName(fileName);
 }
@@ -37,16 +56,37 @@ StandardFileBuffer::~StandardFileBuffer()
 {
 }
 
+bool StandardFileBuffer::isDirty() const
+{
+    Q_D(const StandardFileBuffer);
+    return d->dirty;
+}
+
+QString StandardFileBuffer::fileName() const
+{
+    Q_D(const StandardFileBuffer);
+    return d->fileName;
+}
+
+
+void StandardFileBuffer::setFileName(const QString& fileName)
+{
+    Q_D(StandardFileBuffer);
+    d->fileName = fileName;
+}
+
 bool StandardFileBuffer::load()
 {
-    Q_ASSERT(!fileName_.isEmpty());
+    Q_D(StandardFileBuffer);
 
-    dirty_ = false;
+    Q_ASSERT(!d->fileName.isEmpty());
 
-    QFile file(fileName_);
+    d->dirty = false;
+
+    QFile file(d->fileName);
     if (!file.open(QFile::ReadOnly))
     {
-        qCCritical(CMAKE) << "Could not open" << fileName_ << "for reading";
+        qCCritical(CMAKE) << "Could not open" << d->fileName << "for reading";
         return false;
     }
 
@@ -55,10 +95,10 @@ bool StandardFileBuffer::load()
     qint64 readResult;
     do
     {
-        if (readBytes + readChunkSize >= std::numeric_limits<int>::max())
+        if (readBytes + readChunkSize >= qint64{std::numeric_limits<int>::max()})
             break;
-        fileContent_.resize(readBytes + readChunkSize);
-        readResult = file.read(fileContent_.data() + readBytes, readChunkSize);
+        d->fileContent.resize(static_cast<int>(readBytes + readChunkSize));
+        readResult = file.read(d->fileContent.data() + readBytes, readChunkSize);
         if (readResult > 0 || readBytes == 0)
         {
             readBytes += readResult;
@@ -68,39 +108,50 @@ bool StandardFileBuffer::load()
 
     if (readResult < 0)
     {
-        qCCritical(CMAKE) << "Error while reading file" << fileName_;
+        qCCritical(CMAKE) << "Error while reading file" << d->fileName;
         return false;
     }
 
-    fileContent_.resize(static_cast<int>(readBytes));
+    d->fileContent.resize(static_cast<int>(readBytes));
 
     return true;
 }
 
 bool StandardFileBuffer::save()
 {
-    QFile file(fileName_);
+    Q_D(StandardFileBuffer);
+
+    QFile file(d->fileName);
     if (!file.open(QFile::WriteOnly | QFile::Truncate))
     {
-        qCCritical(CMAKE) << "Could not open" << fileName_ << "for writing";
+        qCCritical(CMAKE) << "Could not open" << d->fileName << "for writing";
         return false;
     }
 
-    if (file.write(fileContent_) != fileContent_.size())
+    if (file.write(d->fileContent) != d->fileContent.size())
     {
-        qCCritical(CMAKE) << "Could not write all data to file" << fileName_;
+        qCCritical(CMAKE) << "Could not write all data to file" << d->fileName;
         return false;
     }
 
-    dirty_ = false;
+    d->dirty = false;
 
     return true;
 }
 
+QByteArray StandardFileBuffer::content() const
+{
+    Q_D(const StandardFileBuffer);
+    return d->fileContent;
+}
+
+
 void StandardFileBuffer::setContent(const QByteArray& content)
 {
-    fileContent_ = content;
-    dirty_ = true;
+    Q_D(StandardFileBuffer);
+
+    d->fileContent = content;
+    d->dirty = true;
     emit changed();
 }
 

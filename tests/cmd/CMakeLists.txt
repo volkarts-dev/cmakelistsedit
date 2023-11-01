@@ -1,1 +1,1 @@
-simple_test(DefaultFileBuffer cmd_lib)
+simple_test(StandardFileBuffer main)

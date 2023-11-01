@@ -2,23 +2,27 @@ add_library(main STATIC "")
 add_library(cmle::cmle ALIAS main)
 
 target_sources(main PRIVATE
+    include/cmle/CMakeListsFile.h
+    include/cmle/FileBuffer.h
+    include/cmle/StandardFileBuffer.h
     CMakeListsFile.cpp
-    CMakeListsFile.h
-    FileBuffer.cpp
-    FileBuffer.h
     StandardFileBuffer.cpp
-    StandardFileBuffer.h
+)
+
+qt_configure_mocs(main)
+
+target_link_libraries(main PRIVATE
+    project_config
+    qt_config
 )
 
 target_link_libraries(main PUBLIC
-    Qt5::Core
     parser
+    Qt5::Core
 )
 
-target_include_directories(main PUBLIC
+target_include_directories(main SYSTEM PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-
-single_source_group(main)
 
 add_subdirectory(parser)

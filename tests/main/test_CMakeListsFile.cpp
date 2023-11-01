@@ -7,8 +7,8 @@
  * version 3 as published by the Free Software Foundation.
  */
 
-#include "main/FileBuffer.h"
-#include "main/CMakeListsFile.h"
+#include <cmle/CMakeListsFile.h>
+#include <cmle/FileBuffer.h>
 #include <QtTest>
 #include <iostream>
 
@@ -116,7 +116,7 @@ private slots:
     void addToTop()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.setInsertBlockPolicy(cmle::CMakeListsFile::InsertBlockPolicy::First);
+        file.setInsertBlockPolicy(cmle::InsertBlockPolicy::First);
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
         COMPARE_FILE("two_source_blocks.cmake");
         file.save();
@@ -126,8 +126,8 @@ private slots:
     void addToTopSorted()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.setInsertBlockPolicy(cmle::CMakeListsFile::InsertBlockPolicy::First);
-        file.setSortSectionPolicy(cmle::CMakeListsFile::SortSectionPolicy::Sort);
+        file.setInsertBlockPolicy(cmle::InsertBlockPolicy::First);
+        file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
         file.save();
         COMPARE_FILE("two_source_blocks-add_top_sorted.cmake");
@@ -136,7 +136,7 @@ private slots:
     void addToBottom()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.setInsertBlockPolicy(cmle::CMakeListsFile::InsertBlockPolicy::Last);
+        file.setInsertBlockPolicy(cmle::InsertBlockPolicy::Last);
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
         file.save();
         COMPARE_FILE("two_source_blocks-add_bottom.cmake");
@@ -161,7 +161,7 @@ private slots:
     void removeFromBottomSorted()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.setSortSectionPolicy(cmle::CMakeListsFile::SortSectionPolicy::Sort);
+        file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
         file.removeSourceFile(QStringLiteral("main"), QStringLiteral("DefaultFileBuffer.cpp"));
         file.save();
         COMPARE_FILE("two_source_blocks-remove_bottom_sorted.cmake");
@@ -188,7 +188,7 @@ private slots:
     void renameInBottomSorted()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.setSortSectionPolicy(cmle::CMakeListsFile::SortSectionPolicy::Sort);
+        file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
         file.renameSourceFile(QStringLiteral("main"), QStringLiteral("DefaultFileBuffer.cpp"),
                               QStringLiteral("Atest1.cpp"));
         file.save();

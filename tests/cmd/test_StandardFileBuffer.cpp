@@ -7,7 +7,7 @@
  * version 3 as published by the Free Software Foundation.
  */
 
-#include "cmd/DefaultFileBuffer.h"
+#include <cmle/StandardFileBuffer.h>
 #include <QtTest>
 
 QString resourceFile(const char* name)
@@ -34,7 +34,7 @@ QByteArray fileChecksum(const QString& fileName)
     return hash.result();
 }
 
-class DefaultFileBufferTest : public QObject
+class StandardFileBufferTest : public QObject
 {
     Q_OBJECT
 
@@ -43,7 +43,7 @@ private slots:
     {
         auto filePath = resourceFile("empty_source_block.cmake");
 
-        DefaultFileBuffer fileBuffer{filePath};
+        cmle::StandardFileBuffer fileBuffer{filePath};
         QVERIFY(fileBuffer.load());
         QVERIFY(!fileBuffer.isDirty());
 
@@ -56,14 +56,14 @@ private slots:
     {
         QTest::ignoreMessage(QtCriticalMsg, QRegularExpression(QStringLiteral("^Could not open.*for reading$")));
 
-        DefaultFileBuffer fileBuffer{resourceFile("non_existing.cmake")};
+        cmle::StandardFileBuffer fileBuffer{resourceFile("non_existing.cmake")};
         QVERIFY(!fileBuffer.load());
         QVERIFY(!fileBuffer.isDirty());
     }
 
     void setValue()
     {
-        DefaultFileBuffer fileBuffer{resourceFile("empty_source_block.cmake")};
+        cmle::StandardFileBuffer fileBuffer{resourceFile("empty_source_block.cmake")};
         QByteArray data{"1234567890"};
         fileBuffer.setContent(data);
         QVERIFY(fileBuffer.isDirty());
@@ -72,7 +72,7 @@ private slots:
 
     void setFileName()
     {
-        DefaultFileBuffer fileBuffer{};
+        cmle::StandardFileBuffer fileBuffer{};
         fileBuffer.setFileName(resourceFile("empty_source_block.cmake"));
         QVERIFY(fileBuffer.load());
     }
@@ -86,7 +86,7 @@ private slots:
 
         QByteArray data{"1234567890"};
 
-        DefaultFileBuffer fileBuffer{filePath};
+        cmle::StandardFileBuffer fileBuffer{filePath};
         fileBuffer.setContent(data);
         QVERIFY(fileBuffer.save());
         QVERIFY(!fileBuffer.isDirty());
@@ -95,5 +95,5 @@ private slots:
     }
 };
 
-#include "test_DefaultFileBuffer.moc"
-QTEST_MAIN(DefaultFileBufferTest)
+#include "test_StandardFileBuffer.moc"
+QTEST_MAIN(StandardFileBufferTest)

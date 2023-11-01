@@ -13,5 +13,3 @@ target_sources(parser PRIVATE
 target_link_libraries(parser PUBLIC
     Qt5::Core
 )
-
-single_source_group(parser)

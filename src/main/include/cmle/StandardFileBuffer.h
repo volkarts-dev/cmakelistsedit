@@ -9,11 +9,13 @@
 
 #pragma once
 
-#include "cmakelistsedit/FileBuffer.h"
+#include <cmle/FileBuffer.h>
 #include <QString>
 #include <QObject>
 
 namespace cmle {
+
+class StandardFileBufferPrivate;
 
 class StandardFileBuffer : public QObject, public cmle::FileBuffer
 {
@@ -21,27 +23,25 @@ class StandardFileBuffer : public QObject, public cmle::FileBuffer
 
 public:
     explicit StandardFileBuffer(QObject* parent = nullptr);
-    StandardFileBuffer(const QString& fileName, QObject* parent = nullptr);
+    explicit StandardFileBuffer(const QString& fileName, QObject* parent = nullptr);
     ~StandardFileBuffer() override;
 
-    bool isDirty() const { return dirty_; }
+    bool isDirty() const;
 
-    QString fileName() const override { return fileName_; }
-    void setFileName(const QString& fileName) { fileName_ = fileName; }
-
+    QString fileName() const override;
+    void setFileName(const QString& fileName);
     bool load();
     bool save();
 
-    QByteArray content() const override { return fileContent_; }
+    QByteArray content() const override;
     void setContent(const QByteArray& content) override;
 
 signals:
     void changed();
 
 private:
-    QString fileName_;
-    QByteArray fileContent_;
-    bool dirty_;
+    QScopedPointer<StandardFileBufferPrivate> d_ptr;
+    Q_DECLARE_PRIVATE(StandardFileBuffer)
 };
 
 } // namespace cmle

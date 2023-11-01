@@ -16,7 +16,7 @@ namespace cmle {
 class FileBuffer
 {
 public:
-    virtual ~FileBuffer() {}
+    virtual ~FileBuffer() = default;
 
     virtual QString fileName() const = 0;
 
