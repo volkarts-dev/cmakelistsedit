@@ -19,8 +19,6 @@ include(QtFunctions)
 
 qt_load_packages()
 
-qt_standard_project_setup()
-
 add_library(project_config INTERFACE)
 set_compiler_warnings(project_config INTERFACE)
 target_compile_features(project_config INTERFACE
