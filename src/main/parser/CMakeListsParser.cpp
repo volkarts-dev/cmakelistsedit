@@ -26,7 +26,7 @@ const QLoggingCategory CMAKE{"CMAKE"};
 bool readCMakeFunction(cmListFileLexer* lexer, CMakeFunctionDesc& func)
 {
     // Command name has already been parsed.
-    cmListFileLexer_Token* token;
+    cmListFileLexer_Token* token{};
 
     QString lastSeparator = QStringLiteral("");
 
@@ -51,7 +51,7 @@ bool readCMakeFunction(cmListFileLexer* lexer, CMakeFunctionDesc& func)
 
     // Arguments.
     int parenthesis = 1;
-    bool wasSpace;
+    bool wasSpace{};
     while ((token = cmListFileLexer_Scan(lexer)))
     {
         wasSpace = false;
@@ -131,7 +131,7 @@ CMakeFileContent readCMakeFile(const QByteArray& fileContent, bool* error)
         return {};
     }
 
-    if (!cmListFileLexer_UseString(lexer, fileContent.data(), fileContent.size()))
+    if (!cmListFileLexer_UseString(lexer, fileContent.data(), static_cast<int>(fileContent.size())))
     {
         qCCritical(CMAKE) << "cmake read error.";
         cmListFileLexer_Delete(lexer);
@@ -142,7 +142,7 @@ CMakeFileContent readCMakeFile(const QByteArray& fileContent, bool* error)
     CMakeFileContent ret;
 
     bool readError = false, haveNewline = true;
-    cmListFileLexer_Token* token;
+    cmListFileLexer_Token* token{};
 
     while (!readError && (token = cmListFileLexer_Scan(lexer)))
     {

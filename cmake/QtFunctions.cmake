@@ -1,5 +1,4 @@
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
+#set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_library(qt_config INTERFACE)
 target_compile_definitions(qt_config INTERFACE
@@ -16,9 +15,9 @@ function(qt_configure_mocs target)
 endfunction()
 
 macro(qt_load_packages)
-    find_package(Qt5 COMPONENTS Core REQUIRED)
+    find_package(Qt6 REQUIRED COMPONENTS Core)
 endmacro()
 
 macro(qt_load_test_packages)
-    find_package(Qt5 COMPONENTS Test REQUIRED)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
 endmacro()

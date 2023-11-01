@@ -4,12 +4,12 @@ include_directories(
 )
 
 macro(simple_test name)
-    add_executable(test_${name} test_${name}.cpp)
+    qt_add_executable(test_${name} test_${name}.cpp)
 
     target_link_libraries(test_${name} PRIVATE
         project_config
         qt_config
-        Qt5::Test
+        Qt::Test
         ${ARGN}
     )
 

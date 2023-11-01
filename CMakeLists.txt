@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.16)
 
 project(CMakeListsEdit LANGUAGES C CXX)
 
@@ -18,6 +18,8 @@ include(CompilerWarnings)
 include(QtFunctions)
 
 qt_load_packages()
+
+qt_standard_project_setup()
 
 add_library(project_config INTERFACE)
 set_compiler_warnings(project_config INTERFACE)

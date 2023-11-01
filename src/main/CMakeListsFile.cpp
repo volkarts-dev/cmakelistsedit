@@ -139,7 +139,7 @@ public:
         sortSectionPolicy{SortSectionPolicy::NoSort},
         blockCreationPolicy{BlockCreationPolicy::Create}
     {
-        loaded = read();
+        read();
     }
 
     static SectionType sectionType(const parser::CMakeFunctionArgument& arg)
@@ -179,14 +179,21 @@ public:
 
     bool read()
     {
-        bool error;
-        auto contents = parser::readCMakeFile(fileBuffer->content(), &error);
-        if (error)
-            return false;
+        loaded = [this]() {
+            bool error{};
+            auto contents = parser::readCMakeFile(fileBuffer->content(), &error);
+            if (error)
+                return false;
 
-        // TODO read target definition blocks
+            // TODO read target definition blocks
 
-        return readInSourcesBlocks(contents);
+            if (!readInSourcesBlocks(contents))
+                return false;
+
+            return true;
+        }();
+
+        return loaded;
     }
 
     bool write()
@@ -230,7 +237,7 @@ public:
             }
 
             // output remainder of last original line
-            if (int lineRest = line.size() - func.endColumn(); lineRest > 0)
+            if (int lineRest = static_cast<int>(line.size()) - func.endColumn(); lineRest > 0)
             {
                 output.append(line.data() + line.size() - lineRest, lineRest);
             }
@@ -273,14 +280,14 @@ public:
             parser::CMakeFunctionDesc func{QStringLiteral("target_sources")};
             func.addArguments({targetArg});
             sourcesBlocks << SourcesBlock{func, targetArg, {}, nullptr};
-            pos = sourcesBlocksIndex.insert(target, {sourcesBlocks.size() - 1});
+            pos = sourcesBlocksIndex.insert(target, {static_cast<int>(sourcesBlocks.size()) - 1});
         }
 
-        int blockIndex;
+        int blockIndex{};
         switch (insertBlockPolicy)
         {
         case InsertBlockPolicy::Last:
-            blockIndex = pos->size() - 1;
+            blockIndex = static_cast<int>(pos->size()) - 1;
             break;
         case InsertBlockPolicy::First:
         default:
@@ -345,7 +352,7 @@ public:
             auto pos = sourcesBlocksIndex.find(target.value());
             if (pos == sourcesBlocksIndex.end())
                 pos = sourcesBlocksIndex.insert(target.value(), {});
-            pos->append(sourcesBlocks.size() - 1);
+            pos->append(static_cast<int>(sourcesBlocks.size()) - 1);
         }
 
         return true;
@@ -442,7 +449,7 @@ bool CMakeListsFile::reload()
 {
     Q_D(CMakeListsFile);
     d->sourcesBlocks.clear();
-    return d->loaded = d->read();
+    return d->read();
 }
 
 bool CMakeListsFile::save()

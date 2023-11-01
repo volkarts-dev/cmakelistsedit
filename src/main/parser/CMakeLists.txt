@@ -1,6 +1,4 @@
-add_library(parser STATIC "")
-
-target_sources(parser PRIVATE
+qt_add_library(parser STATIC
     CMakeFileContent.cpp
     CMakeFileContent.h
     CMakeListsParser.cpp
@@ -11,5 +9,5 @@ target_sources(parser PRIVATE
 )
 
 target_link_libraries(parser PUBLIC
-    Qt5::Core
+    Qt::Core
 )

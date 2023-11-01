@@ -69,16 +69,16 @@ CMakeFunctionArgument& CMakeFunctionArgument::operator=(const CMakeFunctionArgum
 
 QString CMakeFunctionArgument::unescapeValue(const QString& value)
 {
-    int firstScape = value.indexOf(scapingChar);
-    if (firstScape<0)
+    auto firstScape = value.indexOf(scapingChar);
+    if (firstScape < 0)
     {
         return value;
     }
 
     QString newValue;
-    int last = 0;
+    qsizetype last = 0;
     QMap<QChar, QChar>::const_iterator itEnd = scapings.constEnd();
-    for(int i = firstScape; i < value.size() - 1 && i >= 0; i = value.indexOf(scapingChar, i + 2))
+    for(qsizetype i = firstScape; i < value.size() - 1 && i >= 0; i = value.indexOf(scapingChar, i + 2))
     {
         newValue += value.mid(last, i - last);
         const QChar current = value[i + 1];

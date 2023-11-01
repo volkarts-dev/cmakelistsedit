@@ -36,6 +36,7 @@ public:
 
 private:
     StandardFileBuffer* q_ptr;
+    Q_DECLARE_PUBLIC(StandardFileBuffer)
 };
 
 // ********************************************************
@@ -92,7 +93,7 @@ bool StandardFileBuffer::load()
 
     constexpr qint64 readChunkSize = 0x10000;
     qint64 readBytes = 0;
-    qint64 readResult;
+    qint64 readResult{};
     do
     {
         if (readBytes + readChunkSize >= qint64{std::numeric_limits<int>::max()})
