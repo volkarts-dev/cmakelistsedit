@@ -9,7 +9,7 @@ if (NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
 
-option(CMLE_ENABLE_SAMPLECMD "Build the sample command line utility" ON)
+option(CMLE_ENABLE_CLI "Build the command line interface" ON)
 option(CMLE_ENABLE_UNITTESTS "Build unit tests" ON)
 option(CMLE_ENABLE_CODECOVERAGE "Build unit tests with code coverage" OFF)
 
