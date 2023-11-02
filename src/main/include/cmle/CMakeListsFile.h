@@ -16,12 +16,6 @@ namespace cmle {
 
 class FileBuffer;
 
-enum class InsertBlockPolicy
-{
-    First,
-    Last,
-};
-
 enum class SortSectionPolicy
 {
     NoSort,
@@ -55,7 +49,6 @@ public:
 
     FileBuffer* fileBuffer() const;
 
-    void setInsertBlockPolicy(InsertBlockPolicy policy);
     void setDefaultSectionType(SectionType type);
     void setSortSectionPolicy(SortSectionPolicy sortSectionPolicy);
     void setBlockCreationPolicy(BlockCreationPolicy blockCreationPolicy);

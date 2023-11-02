@@ -30,12 +30,8 @@ QString resourceFile(const char* name)
 class TestFileBuffer : public cmle::FileBuffer
 {
 public:
-    explicit TestFileBuffer(const QString& fileName = {})
-    {
-        fileName_ = fileName;
-    }
-
-    ~TestFileBuffer() override
+    explicit TestFileBuffer(QString fileName = {}) :
+        fileName_{std::move(fileName)}
     {
     }
 
@@ -113,33 +109,66 @@ private slots:
         QVERIFY(!file.isDirty());
     }
 
-    void addToTop()
+    void addToBestFitNoPrefix()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.setInsertBlockPolicy(cmle::InsertBlockPolicy::First);
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
         COMPARE_FILE("two_source_blocks.cmake");
         file.save();
-        COMPARE_FILE("two_source_blocks-add_top.cmake");
+        COMPARE_FILE("two_source_blocks-no_prefix.cmake");
     }
 
-    void addToTopSorted()
+    void addToBestFitSamePrefix()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.setInsertBlockPolicy(cmle::InsertBlockPolicy::First);
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("abc/Atest1.cpp"));
+        COMPARE_FILE("two_source_blocks.cmake");
+        file.save();
+        COMPARE_FILE("two_source_blocks-same_prefix.cmake");
+    }
+
+    void addToBestFitDifferentPrefix()
+    {
+        CMAKE_FILE("two_source_blocks.cmake");
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("xyz/Atest1.cpp"));
+        COMPARE_FILE("two_source_blocks.cmake");
+        file.save();
+        COMPARE_FILE("two_source_blocks-different_prefix.cmake");
+    }
+
+    void addToBestFitPartialPrefix1()
+    {
+        CMAKE_FILE("two_source_blocks.cmake");
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("abc/xyz/Atest1.cpp"));
+        COMPARE_FILE("two_source_blocks.cmake");
+        file.save();
+        COMPARE_FILE("two_source_blocks-partial_prefix_1.cmake");
+    }
+
+    void addToBestFitPartialPrefix2()
+    {
+        CMAKE_FILE("two_source_blocks.cmake");
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("def/Atest1.cpp"));
+        COMPARE_FILE("two_source_blocks.cmake");
+        file.save();
+        COMPARE_FILE("two_source_blocks-partial_prefix_2.cmake");
+    }
+
+    void addToBestFitNoPrefixSorted()
+    {
+        CMAKE_FILE("two_source_blocks.cmake");
         file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
         file.save();
-        COMPARE_FILE("two_source_blocks-add_top_sorted.cmake");
+        COMPARE_FILE("two_source_blocks-no_prefix_sorted.cmake");
     }
 
-    void addToBottom()
+    void addToDefault()
     {
-        CMAKE_FILE("two_source_blocks.cmake");
-        file.setInsertBlockPolicy(cmle::InsertBlockPolicy::Last);
+        CMAKE_FILE("no_source_block.cmake");
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
         file.save();
-        COMPARE_FILE("two_source_blocks-add_bottom.cmake");
+        COMPARE_FILE("no_source_block-default.cmake");
     }
 
     void removeFromTop()
@@ -153,7 +182,7 @@ private slots:
     void removeFromBottom()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.removeSourceFile(QStringLiteral("main"), QStringLiteral("DefaultFileBuffer.cpp"));
+        file.removeSourceFile(QStringLiteral("main"), QStringLiteral("abc/DefaultFileBuffer.cpp"));
         file.save();
         COMPARE_FILE("two_source_blocks-remove_bottom.cmake");
     }
@@ -162,7 +191,7 @@ private slots:
     {
         CMAKE_FILE("two_source_blocks.cmake");
         file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
-        file.removeSourceFile(QStringLiteral("main"), QStringLiteral("DefaultFileBuffer.cpp"));
+        file.removeSourceFile(QStringLiteral("main"), QStringLiteral("abc/DefaultFileBuffer.cpp"));
         file.save();
         COMPARE_FILE("two_source_blocks-remove_bottom_sorted.cmake");
     }
@@ -179,7 +208,7 @@ private slots:
     void renameInBottom()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.renameSourceFile(QStringLiteral("main"), QStringLiteral("DefaultFileBuffer.cpp"),
+        file.renameSourceFile(QStringLiteral("main"), QStringLiteral("abc/DefaultFileBuffer.cpp"),
                               QStringLiteral("Atest1.cpp"));
         file.save();
         COMPARE_FILE("two_source_blocks-rename_bottom.cmake");
@@ -189,18 +218,10 @@ private slots:
     {
         CMAKE_FILE("two_source_blocks.cmake");
         file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
-        file.renameSourceFile(QStringLiteral("main"), QStringLiteral("DefaultFileBuffer.cpp"),
+        file.renameSourceFile(QStringLiteral("main"), QStringLiteral("abc/DefaultFileBuffer.cpp"),
                               QStringLiteral("Atest1.cpp"));
         file.save();
         COMPARE_FILE("two_source_blocks-rename_bottom_sorted.cmake");
-    }
-
-    void addToNoSourceBlock()
-    {
-        CMAKE_FILE("no_source_block.cmake");
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
-        file.save();
-        COMPARE_FILE("no_source_block-add.cmake");
     }
 
     void addToEmptySourceBlock()

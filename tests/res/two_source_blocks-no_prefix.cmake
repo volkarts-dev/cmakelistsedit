@@ -1,9 +1,9 @@
 add_library(main STATIC "")
 
 target_sources(main PRIVATE
-    Atest1.cpp
     CMakeListsFile.cpp
     CMakeListsFile.h
+    Atest1.cpp
 )
 
 target_link_libraries(main PUBLIC
@@ -14,8 +14,10 @@ target_link_libraries(main PUBLIC
 target_sources(main PRIVATE
     FileBuffer.cpp
     FileBuffer.h
-    DefaultFileBuffer.cpp
-    DefaultFileBuffer.h
+    abc/DefaultFileBuffer.cpp
+    abc/DefaultFileBuffer.h
+    def/xyz/DefaultFileBuffer.cpp
+    def/xyz/DefaultFileBuffer.h
 )
 
 

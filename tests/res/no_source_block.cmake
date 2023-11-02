@@ -1,7 +1,4 @@
-add_library(main STATIC
-    FileBuffer.cpp
-    FileBuffer.h
-)
+add_library(main STATIC "")
 
 target_link_libraries(main PUBLIC
     Qt5::Core

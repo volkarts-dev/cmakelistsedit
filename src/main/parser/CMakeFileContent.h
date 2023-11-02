@@ -53,6 +53,8 @@ public:
     QString separator() const { return d_->separator; }
     void setSeparator(const QString& separator) { d_->separator = separator; }
 
+    operator bool() const { return !d_->value.isEmpty(); }
+
 private:
     class Data : public QSharedData
     {

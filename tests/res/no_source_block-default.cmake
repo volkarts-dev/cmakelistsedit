@@ -1,7 +1,5 @@
 add_library(main STATIC
-    FileBuffer.cpp
-    FileBuffer.h
-)
+    Atest1.cpp)
 
 target_link_libraries(main PUBLIC
     Qt5::Core
@@ -10,6 +8,3 @@ target_link_libraries(main PUBLIC
 
 get_target_property(main_src main SOURCES)
 source_group("" FILES ${main_src})
-target_sources(main
-    PRIVATE
-    Atest1.cpp)

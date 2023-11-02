@@ -14,7 +14,9 @@ target_sources(main PRIVATE
     FileBuffer.cpp
     FileBuffer.h
     Atest1.cpp
-    DefaultFileBuffer.h
+    abc/DefaultFileBuffer.h
+    def/xyz/DefaultFileBuffer.cpp
+    def/xyz/DefaultFileBuffer.h
 )
 
 

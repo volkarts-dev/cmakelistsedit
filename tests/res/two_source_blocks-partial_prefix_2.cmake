@@ -1,6 +1,9 @@
 add_library(main STATIC "")
 
-target_sources(main)
+target_sources(main PRIVATE
+    CMakeListsFile.cpp
+    CMakeListsFile.h
+)
 
 target_link_libraries(main PUBLIC
     Qt5::Core
@@ -8,11 +11,13 @@ target_link_libraries(main PUBLIC
 )
 
 target_sources(main PRIVATE
-    DefaultFileBuffer.cpp
-    DefaultFileBuffer.h
     FileBuffer.cpp
     FileBuffer.h
-    Atest1.cpp
+    abc/DefaultFileBuffer.cpp
+    abc/DefaultFileBuffer.h
+    def/xyz/DefaultFileBuffer.cpp
+    def/xyz/DefaultFileBuffer.h
+    def/Atest1.cpp
 )
 
 

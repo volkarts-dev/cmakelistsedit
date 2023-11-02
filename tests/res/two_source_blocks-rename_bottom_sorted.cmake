@@ -11,8 +11,10 @@ target_link_libraries(main PUBLIC
 )
 
 target_sources(main PRIVATE
+    abc/DefaultFileBuffer.h
+    def/xyz/DefaultFileBuffer.cpp
+    def/xyz/DefaultFileBuffer.h
     Atest1.cpp
-    DefaultFileBuffer.h
     FileBuffer.cpp
     FileBuffer.h
 )
