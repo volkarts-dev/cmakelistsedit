@@ -1,14 +1,8 @@
-/* KDevelop CMake Support
- *
- * Copyright 2006 Matt Rogers <mattr@kde.org>
- * Copyright 2008 Aleix Pol <aleixpol@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- */
+// KDevelop CMake Support
+// Copyright 2006 Matt Rogers <mattr@kde.org>
+// Copyright 2008 Aleix Pol <aleixpol@gmail.com>
+// Copyright 2021-2023, Daniel Volk <mail@volkarts.com>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "CMakeFileContent.h"
 
