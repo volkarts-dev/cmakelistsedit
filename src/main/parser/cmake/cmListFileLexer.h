@@ -1,9 +1,14 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
-#ifndef cmListFileLexer_h
-#define cmListFileLexer_h
+#pragma once
 
-typedef enum cmListFileLexer_Type_e {
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* NOLINTNEXTLINE(modernize-use-using) */
+typedef enum cmListFileLexer_Type_e
+{
   cmListFileLexer_Token_None,
   cmListFileLexer_Token_Space,
   cmListFileLexer_Token_Newline,
@@ -19,6 +24,7 @@ typedef enum cmListFileLexer_Type_e {
   cmListFileLexer_Token_BadString
 } cmListFileLexer_Type;
 
+/* NOLINTNEXTLINE(modernize-use-using) */
 typedef struct cmListFileLexer_Token_s cmListFileLexer_Token;
 struct cmListFileLexer_Token_s
 {
@@ -39,26 +45,24 @@ enum cmListFileLexer_BOM_e
   cmListFileLexer_BOM_UTF32BE,
   cmListFileLexer_BOM_UTF32LE
 };
+
+/* NOLINTNEXTLINE(modernize-use-using) */
 typedef enum cmListFileLexer_BOM_e cmListFileLexer_BOM;
 
+/* NOLINTNEXTLINE(modernize-use-using) */
 typedef struct cmListFileLexer_s cmListFileLexer;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 cmListFileLexer* cmListFileLexer_New(void);
-int cmListFileLexer_SetString(cmListFileLexer*, const char*);
-int cmListFileLexer_UseString(cmListFileLexer*, const char*, int length);
+int cmListFileLexer_SetFileName(cmListFileLexer*, const char*,
+                                cmListFileLexer_BOM* bom);
+int cmListFileLexer_SetString(cmListFileLexer*, const char*, int length);
 cmListFileLexer_Token* cmListFileLexer_Scan(cmListFileLexer*);
-int cmListFileLexer_GetCurrentLine(cmListFileLexer*);
-int cmListFileLexer_GetCurrentColumn(cmListFileLexer*);
+long cmListFileLexer_GetCurrentLine(cmListFileLexer*);
+long cmListFileLexer_GetCurrentColumn(cmListFileLexer*);
 const char* cmListFileLexer_GetTypeAsString(cmListFileLexer*,
                                             cmListFileLexer_Type);
 void cmListFileLexer_Delete(cmListFileLexer*);
 
 #ifdef __cplusplus
 } /* extern "C" */
-#endif
-
 #endif

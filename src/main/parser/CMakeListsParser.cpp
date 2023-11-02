@@ -12,7 +12,7 @@
 
 #include "CMakeListsParser.h"
 
-#include "cmListFileLexer.h"
+#include "cmake/cmListFileLexer.h"
 #include <QDir>
 #include <QLoggingCategory>
 #include <QString>
@@ -131,7 +131,7 @@ CMakeFileContent readCMakeFile(const QByteArray& fileContent, bool* error)
         return {};
     }
 
-    if (!cmListFileLexer_UseString(lexer, fileContent.data(), static_cast<int>(fileContent.size())))
+    if (!cmListFileLexer_SetString(lexer, fileContent.data(), static_cast<int>(fileContent.size())))
     {
         qCCritical(CMAKE) << "cmake read error.";
         cmListFileLexer_Delete(lexer);
