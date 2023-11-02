@@ -29,7 +29,4 @@ if(CMLE_ENABLE_CODECOVERAGE)
     )
 endif()
 
-
-add_subdirectory(cmd)
-
 add_subdirectory(main)
