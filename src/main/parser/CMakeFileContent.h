@@ -11,17 +11,22 @@
 #include <QVector>
 #include <limits>
 
-namespace cmle { namespace parser {
+namespace cmle::parser {
 
 class CMakeFunctionArgument
 {
 public:
     CMakeFunctionArgument();
-    explicit CMakeFunctionArgument(const QString& value);
+    CMakeFunctionArgument(const QString& value);
     CMakeFunctionArgument(const QString& value, bool quoted, const QString& separator = {});
 
     CMakeFunctionArgument(const CMakeFunctionArgument& other);
     CMakeFunctionArgument& operator=(const CMakeFunctionArgument& other);
+
+    CMakeFunctionArgument(CMakeFunctionArgument&& other);
+    CMakeFunctionArgument& operator=(CMakeFunctionArgument&& other);
+
+    ~CMakeFunctionArgument();
 
     inline bool operator==(const CMakeFunctionArgument& rhs) const
     {
@@ -69,14 +74,19 @@ private:
 
 // *********************************************************************************************************************
 
-class CMakeFunctionDesc
+class CMakeFunction
 {
 public:
-    CMakeFunctionDesc();
-    CMakeFunctionDesc(const QString& name);
+    CMakeFunction();
+    CMakeFunction(const QString& name);
 
-    CMakeFunctionDesc(const CMakeFunctionDesc& other);
-    CMakeFunctionDesc& operator=(const CMakeFunctionDesc& other);
+    CMakeFunction(const CMakeFunction& other);
+    CMakeFunction& operator=(const CMakeFunction& other);
+
+    CMakeFunction(CMakeFunction&& other);
+    CMakeFunction& operator=(CMakeFunction&& other);
+
+    ~CMakeFunction();
 
     QString toString() const;
 
@@ -125,10 +135,10 @@ private:
     QSharedDataPointer<Data> d_;
 };
 
-using CMakeFileContent = QVector<CMakeFunctionDesc>;
+using CMakeFileContent = QVector<CMakeFunction>;
 
-}} // namespace cmle::parser
+} // namespace cmle::parser
 
 Q_DECLARE_METATYPE(cmle::parser::CMakeFunctionArgument)
 
-Q_DECLARE_METATYPE(cmle::parser::CMakeFunctionDesc)
+Q_DECLARE_METATYPE(cmle::parser::CMakeFunction)

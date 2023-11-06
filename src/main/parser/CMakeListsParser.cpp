@@ -17,7 +17,7 @@ namespace {
 
 const QLoggingCategory CMAKE{"CMAKE"};
 
-bool readCMakeFunction(cmListFileLexer* lexer, CMakeFunctionDesc& func)
+bool readCMakeFunction(cmListFileLexer* lexer, CMakeFunction& func)
 {
     // Command name has already been parsed.
     cmListFileLexer_Token* token{};
@@ -150,7 +150,7 @@ CMakeFileContent readCMakeFile(const QByteArray& fileContent, bool* error)
         else if (token->type == cmListFileLexer_Token_Identifier && haveNewline)
         {
             haveNewline = false;
-            CMakeFunctionDesc function;
+            CMakeFunction function;
             function.setName(QString::fromLocal8Bit(token->text, token->length).toLower());
             function.setStartLine(token->line);
             function.setStartColumn(token->column);

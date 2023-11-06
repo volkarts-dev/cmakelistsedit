@@ -85,6 +85,15 @@ class CMakeListsFileTest : public QObject
 {
     Q_OBJECT
 
+public:
+    CMakeListsFileTest()
+    {
+        cppSrcMimeType = QMimeDatabase().mimeTypeForName(QStringLiteral("text/x-c++src"));
+    }
+
+private:
+    QMimeType cppSrcMimeType;
+
 private slots:
     void openGood()
     {
@@ -106,7 +115,7 @@ private slots:
     void addToBestFitNoPrefix()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
         file.save();
         COMPARE_FILE("two_source_blocks-no_prefix.cmake");
@@ -115,7 +124,7 @@ private slots:
     void addToBestFitSamePrefix()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("abc/Atest1.cpp"));
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("abc/Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
         file.save();
         COMPARE_FILE("two_source_blocks-same_prefix.cmake");
@@ -124,7 +133,7 @@ private slots:
     void addToBestFitDifferentPrefix()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("xyz/Atest1.cpp"));
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("xyz/Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
         file.save();
         COMPARE_FILE("two_source_blocks-different_prefix.cmake");
@@ -133,7 +142,7 @@ private slots:
     void addToBestFitPartialPrefix1()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("abc/xyz/Atest1.cpp"));
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("abc/xyz/Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
         file.save();
         COMPARE_FILE("two_source_blocks-partial_prefix_1.cmake");
@@ -142,7 +151,7 @@ private slots:
     void addToBestFitPartialPrefix2()
     {
         CMAKE_FILE("two_source_blocks.cmake");
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("def/Atest1.cpp"));
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("def/Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
         file.save();
         COMPARE_FILE("two_source_blocks-partial_prefix_2.cmake");
@@ -152,7 +161,7 @@ private slots:
     {
         CMAKE_FILE("two_source_blocks.cmake");
         file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"), cppSrcMimeType);
         file.save();
         COMPARE_FILE("two_source_blocks-no_prefix_sorted.cmake");
     }
@@ -160,7 +169,7 @@ private slots:
     void addToDefault()
     {
         CMAKE_FILE("no_source_block.cmake");
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"), cppSrcMimeType);
         file.save();
         COMPARE_FILE("no_source_block-default.cmake");
     }
@@ -221,7 +230,7 @@ private slots:
     void addToEmptySourceBlock()
     {
         CMAKE_FILE("empty_source_block.cmake");
-        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"));
+        file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"), cppSrcMimeType);
         file.save();
         COMPARE_FILE("empty_source_block-add.cmake");
     }

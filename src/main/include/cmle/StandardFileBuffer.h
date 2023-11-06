@@ -4,20 +4,18 @@
 #pragma once
 
 #include <cmle/FileBuffer.h>
+#include <QScopedPointer>
 #include <QString>
-#include <QObject>
 
 namespace cmle {
 
 class StandardFileBufferPrivate;
 
-class StandardFileBuffer : public QObject, public cmle::FileBuffer
+class StandardFileBuffer : public cmle::FileBuffer
 {
-    Q_OBJECT
-
 public:
-    explicit StandardFileBuffer(QObject* parent = nullptr);
-    explicit StandardFileBuffer(const QString& fileName, QObject* parent = nullptr);
+    StandardFileBuffer();
+    StandardFileBuffer(const QString& fileName);
     ~StandardFileBuffer() override;
 
     bool isDirty() const;
@@ -30,12 +28,11 @@ public:
     QByteArray content() const override;
     void setContent(const QByteArray& content) override;
 
-signals:
-    void changed();
-
 private:
     QScopedPointer<StandardFileBufferPrivate> d_ptr;
     Q_DECLARE_PRIVATE(StandardFileBuffer)
+
+    Q_DISABLE_COPY_MOVE(StandardFileBuffer)
 };
 
 } // namespace cmle

@@ -14,7 +14,7 @@ const QLoggingCategory CMAKE{"CMAKE"};
 
 } // namespace
 
-// ********************************************************
+// *********************************************************************************************************************
 
 class StandardFileBufferPrivate
 {
@@ -33,22 +33,19 @@ private:
     Q_DECLARE_PUBLIC(StandardFileBuffer)
 };
 
-// ********************************************************
+// *********************************************************************************************************************
 
-StandardFileBuffer::StandardFileBuffer(QObject* parent) :
-    StandardFileBuffer({}, parent)
+StandardFileBuffer::~StandardFileBuffer() = default;
+
+StandardFileBuffer::StandardFileBuffer() :
+    StandardFileBuffer(QString{})
 {
 }
 
-StandardFileBuffer::StandardFileBuffer(const QString& fileName, QObject* parent) :
-    QObject(parent),
+StandardFileBuffer::StandardFileBuffer(const QString& fileName) :
     d_ptr{new StandardFileBufferPrivate{this}}
 {
     setFileName(fileName);
-}
-
-StandardFileBuffer::~StandardFileBuffer()
-{
 }
 
 bool StandardFileBuffer::isDirty() const
@@ -144,10 +141,8 @@ QByteArray StandardFileBuffer::content() const
 void StandardFileBuffer::setContent(const QByteArray& content)
 {
     Q_D(StandardFileBuffer);
-
     d->fileContent = content;
     d->dirty = true;
-    emit changed();
 }
 
 } // namespace cmle

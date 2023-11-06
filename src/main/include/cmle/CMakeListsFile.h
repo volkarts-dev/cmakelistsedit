@@ -3,33 +3,18 @@
 
 #pragma once
 
-#include <QMap>
+#include <QMimeType>
 #include <QObject>
 
 namespace cmle {
 
-class FileBuffer;
-
 enum class SortSectionPolicy
 {
     NoSort,
-    Sort,
+    Sort
 };
 
-enum class SectionType
-{
-    Invalid,
-    Private,
-    Public,
-    Interface,
-};
-
-enum class BlockCreationPolicy
-{
-    Create,
-    NoCreate,
-};
-
+class FileBuffer;
 class CMakeListsFilePrivate;
 
 class CMakeListsFile : public QObject
@@ -37,15 +22,12 @@ class CMakeListsFile : public QObject
     Q_OBJECT
 
 public:
-    explicit CMakeListsFile(FileBuffer* fileBuffer, QObject* parent = nullptr);
+    CMakeListsFile(FileBuffer* fileBuffer, QObject* parent = nullptr);
     ~CMakeListsFile() override;
-
 
     FileBuffer* fileBuffer() const;
 
-    void setDefaultSectionType(SectionType type);
     void setSortSectionPolicy(SortSectionPolicy sortSectionPolicy);
-    void setBlockCreationPolicy(BlockCreationPolicy blockCreationPolicy);
 
     bool isLoaded() const;
     bool isDirty() const;
@@ -53,7 +35,7 @@ public:
     bool reload();
     bool save();
 
-    bool addSourceFile(const QString& target, const QString& fileName);
+    bool addSourceFile(const QString& target, const QString& fileName, const QMimeType& mimeType = {});
     bool renameSourceFile(const QString& target, const QString& oldFileName, const QString& newFileName);
     bool removeSourceFile(const QString& target, const QString& fileName);
 
@@ -65,6 +47,8 @@ private:
     Q_DECLARE_PRIVATE(CMakeListsFile)
 
     friend class CMakeListsFileTest;
+
+    Q_DISABLE_COPY_MOVE(CMakeListsFile)
 };
 
 } // namespace cmle

@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QLoggingCategory>
+#include <QMimeDatabase>
 #include <QRegularExpression>
 #include <algorithm>
 #include <iostream>
@@ -19,7 +20,7 @@ namespace {
 const QLoggingCategory CMAKE{"com.va.cmakelistsedit"};
 
  // TODO make this configurable or copy from common separators
-const QString kDefaultSeparator = QStringLiteral("\n    ");
+const QString kDefaultSeparator = QStringLiteral("\n    "); // clazy:exclude=non-pod-global-static
 
 class RawDataReader
 {
@@ -59,8 +60,9 @@ struct FileNameCompare
 {
     inline bool operator()(const parser::CMakeFunctionArgument& lhs, const parser::CMakeFunctionArgument& rhs)
     {
-        bool lhsHasSlash = lhs.value().contains(QRegularExpression(QStringLiteral("[/\\\\]")));
-        bool rhsHasSlash = rhs.value().contains(QRegularExpression(QStringLiteral("[/\\\\]")));
+        static const QRegularExpression hasSlashExpr(QStringLiteral("[/\\\\]"));
+        bool lhsHasSlash = lhs.value().contains(hasSlashExpr);
+        bool rhsHasSlash = rhs.value().contains(hasSlashExpr);
         if (lhsHasSlash && !rhsHasSlash)
             return true;
         else if (!lhsHasSlash && rhsHasSlash)
@@ -100,26 +102,138 @@ inline bool compareStrings(const QString& string, T... strings)
     return ((string.compare(QLatin1String(strings), Qt::CaseInsensitive) == 0) || ...);
 }
 
+QString extractPath(const QString& fileName)
+{
+    const QFileInfo fi{fileName};
+    const auto path = fi.path();
+    if (path == QLatin1String("."))
+        return QLatin1String{""};
+    return path;
+}
+
 } // namespace
 
 // *********************************************************************************************************************
 
-CMakeListsFilePrivate::Section::Section(SectionType t, parser::CMakeFunctionArgument a) :
-    type{t},
-    typeArgument{std::move(a)}
+CMakeListsFilePrivate::Section::Section()
 {
 }
 
-CMakeListsFilePrivate::SourcesBlock::SourcesBlock()
+CMakeListsFilePrivate::Section::Section(parser::CMakeFunctionArgument nameArgument) :
+    nameArgument_{std::move(nameArgument)},
+    name_{nameArgument_.value()}
 {
 }
 
-CMakeListsFilePrivate::SourcesBlock::SourcesBlock(parser::CMakeFunctionDesc d, parser::CMakeFunctionArgument t) :
-    functionDesc{std::move(d)},
-    target{std::move(t)}
+void CMakeListsFilePrivate::Section::finalize()
+{
+    for (const auto& fileName : fileNames_)
+    {
+        commonPrefixes_.insert(extractPath(fileName.value()));
+    }
+}
+
+void CMakeListsFilePrivate::Section::addFileArgument(parser::CMakeFunctionArgument fileArgument)
+{
+    fileNames_ << std::move(fileArgument);
+}
+
+void CMakeListsFilePrivate::Section::addFileName(const QString& fileName)
+{
+    const QString separator = !fileNames_.isEmpty() ? fileNames_.last().separator() : kDefaultSeparator;
+
+    fileNames_ << parser::CMakeFunctionArgument{fileName, needsQuotation(fileName), separator};
+}
+
+bool CMakeListsFilePrivate::Section::renameFile(const QString& oldFileName, const QString& newFileName)
+{
+    for (auto& fileName : fileNames_)
+    {
+        if (fileName == oldFileName)
+        {
+            fileName.setValue(newFileName);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool CMakeListsFilePrivate::Section::removeFile(const QString& fileName)
+{
+    for (qsizetype i = 0; i < fileNames_.size(); ++i)
+    {
+        if (fileNames_[i] == fileName)
+        {
+            fileNames_.removeAt(i);
+            return true;
+        }
+    }
+    return false;
+}
+
+void CMakeListsFilePrivate::Section::sortFileNames()
+{
+    std::sort(fileNames_.begin(), fileNames_.end(), FileNameCompare());
+}
+
+// *********************************************************************************************************************
+
+CMakeListsFilePrivate::SourcesFunction::SourcesFunction()
 {
 }
 
+CMakeListsFilePrivate::SourcesFunction::SourcesFunction(parser::CMakeFunction cmakeFunction, QString target) :
+    cmakeFunction_{std::move(cmakeFunction)},
+    target_{std::move(target)}
+{
+}
+
+void CMakeListsFilePrivate::SourcesFunction::finalize()
+{
+    for (auto it = sections_.begin(); it != sections_.end(); ++it)
+    {
+        it->finalize();
+    }
+}
+
+void CMakeListsFilePrivate::SourcesFunction::setCmakeFunction(parser::CMakeFunction cmakeFunction)
+{
+    cmakeFunction_ = std::move(cmakeFunction);
+}
+
+void CMakeListsFilePrivate::SourcesFunction::setTarget(QString target)
+{
+    target_ = std::move(target);
+}
+
+void CMakeListsFilePrivate::SourcesFunction::addArgument(parser::CMakeFunctionArgument argument)
+{
+    arguments_ << Argument{-1, std::move(argument)};
+}
+
+CMakeListsFilePrivate::Section* CMakeListsFilePrivate::SourcesFunction::addSection()
+{
+    arguments_ << Argument{sections_.size(), {}};
+    sections_ << Section{};
+    return &sections_.last();
+}
+
+CMakeListsFilePrivate::Section* CMakeListsFilePrivate::SourcesFunction::addSection(parser::CMakeFunctionArgument argument)
+{
+    arguments_ << Argument{sections_.size(), {}};
+    sections_ << Section{std::move(argument)};
+    return &sections_.last();
+}
+
+void CMakeListsFilePrivate::SourcesFunction::setDefaultInsertSection(QString sectionName)
+{
+    defaultInsertSection_ = std::move(sectionName);
+}
+
+void CMakeListsFilePrivate::SourcesFunction::setPreferred(bool preferred)
+{
+    preferred_ = preferred;
+}
 
 // *********************************************************************************************************************
 
@@ -128,39 +242,28 @@ CMakeListsFilePrivate::CMakeListsFilePrivate(CMakeListsFile* q, FileBuffer* _fil
     fileBuffer{_fileBuffer},
     loaded{false},
     dirty{false},
-    defaultSectionType{SectionType::Private},
-    sortSectionPolicy{SortSectionPolicy::NoSort},
-    blockCreationPolicy{BlockCreationPolicy::Create}
+    sortSectionPolicy{SortSectionPolicy::NoSort}
 {
     read();
 }
 
-SectionType CMakeListsFilePrivate::sectionType(const parser::CMakeFunctionArgument& arg)
+QString CMakeListsFilePrivate::sectionName(const parser::CMakeFunctionArgument& arg)
 {
     if (arg.value().compare(QLatin1String("PRIVATE"), Qt::CaseInsensitive) == 0)
-        return SectionType::Private;
+        return QLatin1String("PRIVATE");
     else if (arg.value().compare(QLatin1String("PUBLIC"), Qt::CaseInsensitive) == 0)
-        return SectionType::Public;
+        return QLatin1String("PUBLIC");
     else if (arg.value().compare(QLatin1String("INTERFACE"), Qt::CaseInsensitive) == 0)
-        return SectionType::Interface;
+        return QLatin1String("INTERFACE");
     else
-        return SectionType::Invalid;
+        return {};
 }
 
-parser::CMakeFunctionArgument CMakeListsFilePrivate::sectionTypeArgument(SectionType type)
+parser::CMakeFunctionArgument CMakeListsFilePrivate::sectionTypeArgument(const QString& sectionName)
 {
-    switch (type)
-    {
-        case SectionType::Private:
-            return {QStringLiteral("PRIVATE"), false, kDefaultSeparator};
-        case SectionType::Public:
-            return {QStringLiteral("PUBLIC"), false, kDefaultSeparator};
-        case SectionType::Interface:
-            return {QStringLiteral("INTERFACE"), false, kDefaultSeparator};
-        case SectionType::Invalid:
-        default:
-            return {};
-    }
+    if (sectionName.isEmpty())
+        return {};
+    return {sectionName, false, kDefaultSeparator};
 }
 
 void CMakeListsFilePrivate::setDirty()
@@ -180,7 +283,7 @@ bool CMakeListsFilePrivate::read()
 
         // TODO read target definition blocks
 
-        if (!readInSourcesBlocks(contents))
+        if (!readInSourcesFunctions(contents))
             return false;
 
         return true;
@@ -198,12 +301,12 @@ bool CMakeListsFilePrivate::write()
 
     QByteArray output;
 
-    for (auto& sourcesBlock : sourcesBlocks)
+    for (auto& sourcesFunction : sourcesFunctions)
     {
         // convert section to argument list
-        writeBackSourcesBlock(sourcesBlock);
+        writeBackSourcesFunction(sourcesFunction);
 
-        auto& func = sourcesBlock.functionDesc;
+        auto& func = sourcesFunction.mutableCmakeFunction();
 
         // advance to source block start line
         while (!reader.eof() && (reader.currentLine() < func.startLine()))
@@ -220,7 +323,7 @@ bool CMakeListsFilePrivate::write()
         }
 
         // output actual sources block
-        auto funcOutput = sourcesBlock.functionDesc.toString();
+        auto funcOutput = sourcesFunction.cmakeFunction().toString();
         output.append(funcOutput.toLocal8Bit());
 
         // skip over original source block
@@ -232,7 +335,7 @@ bool CMakeListsFilePrivate::write()
         // output remainder of last original line
         if (int lineRest = static_cast<int>(line.size()) - func.endColumn(); lineRest > 0)
         {
-            output.append(line.data() + line.size() - lineRest, lineRest);
+            output.append(line.data() + line.size() - lineRest, lineRest); // NOLINT(pro-bounds-pointer-arithmetic)
         }
 
         // remember new block position
@@ -259,197 +362,270 @@ bool CMakeListsFilePrivate::write()
     return true;
 }
 
-void CMakeListsFilePrivate::addSourcesBlockIndex(const QString& target, qsizetype index)
+void CMakeListsFilePrivate::addSourcesFunctionIndex(const QString& target, qsizetype index)
 {
-    auto pos = sourcesBlocksIndex.find(target);
-    if (pos == sourcesBlocksIndex.end())
-        pos = sourcesBlocksIndex.insert(target, {});
+    auto pos = sourcesFunctionsIndex.find(target);
+    if (pos == sourcesFunctionsIndex.end())
+        pos = sourcesFunctionsIndex.insert(target, {});
     pos->append(index);
 }
 
-void CMakeListsFilePrivate::resortSection(Section& section)
-{
-    std::sort(section.fileNames.begin(), section.fileNames.end(), FileNameCompare());
-}
-
-bool CMakeListsFilePrivate::readInSourcesBlocks(const parser::CMakeFileContent& cmakeFileContent)
+bool CMakeListsFilePrivate::readInSourcesFunctions(const parser::CMakeFileContent& cmakeFileContent)
 {
     for (const auto& func : cmakeFileContent)
     {
-        auto block = readFunction(func);
-        if (block.target.value().isEmpty())
+        auto function = readFunction(func);
+        if (function.target().isEmpty())
             continue;
 
-        collectSourcesBlockInfo(block);
+        sourcesFunctions << function;
 
-        sourcesBlocks << block;
-
-        addSourcesBlockIndex(block.target.value(), sourcesBlocks.size() - 1);
+        addSourcesFunctionIndex(function.target(), sourcesFunctions.size() - 1);
     }
 
     return true;
 }
 
-void CMakeListsFilePrivate::writeBackSourcesBlock(SourcesBlock& sourcesBlock)
+void CMakeListsFilePrivate::writeBackSourcesFunction(SourcesFunction& sourcesFunction)
 {
-    if (!sourcesBlock.dirty)
+    if (!sourcesFunction.isDirty())
         return;
 
     QList<parser::CMakeFunctionArgument> newArguments;
-    newArguments << sourcesBlock.target;
-    for (const auto& modifier : qAsConst(sourcesBlock.modifiers))
+    for (const auto& argument : qAsConst(sourcesFunction.arguments()))
     {
-        newArguments << modifier;
-    }
-    for (const auto& section : qAsConst(sourcesBlock.sections))
-    {
-        if (section.typeArgument)
-            newArguments << section.typeArgument;
-
-        for (const auto& fileName : section.fileNames)
+        if (argument.sectionIndex == -1)
         {
-            newArguments << fileName;
+            newArguments << argument.argument;
+        }
+        else
+        {
+            const auto& section = sourcesFunction.sections()[argument.sectionIndex];
+
+            if (section.nameArgument())
+                newArguments << section.nameArgument();
+
+            for (const auto& fileName : section.fileNames())
+            {
+                newArguments << fileName;
+            }
         }
     }
-    sourcesBlock.functionDesc.setArguments(newArguments);
 
-    sourcesBlock.dirty = false;
-}
+    parser::CMakeFunction newFunction{sourcesFunction.cmakeFunction()};
+    newFunction.setArguments(newArguments);
+    sourcesFunction.setCmakeFunction(newFunction);
 
-CMakeListsFilePrivate::SourcesBlock& CMakeListsFilePrivate::createSourcesBlock(const QString& target)
-{
-    parser::CMakeFunctionArgument targetArg{target, false};
-    parser::CMakeFunctionDesc func{QStringLiteral("target_sources")};
-    func.addArguments({targetArg});
-    sourcesBlocks << SourcesBlock{func, targetArg};
-    qsizetype newSourcesBlockIndex = sourcesBlocks.size() - 1;
-
-    addSourcesBlockIndex(target, newSourcesBlockIndex);
-
-    auto& sourcesBlock = sourcesBlocks[newSourcesBlockIndex];
-    sourcesBlock.sections.append({defaultSectionType, sectionTypeArgument(defaultSectionType)});
-    sourcesBlock.defaultInsertSection = &sourcesBlock.sections.last();
-
-    return sourcesBlock;
+    sourcesFunction.setDirty(false);
 }
 
 CMakeListsFilePrivate::SectionSearchResult CMakeListsFilePrivate::findBestInsertSection(
-        const QString& target, const QString& fileName)
+        const QString& target, const QString& fileName, const QMimeType& mimeType)
 {
-    const auto pos = sourcesBlocksIndex.find(target);
-    if (pos == sourcesBlocksIndex.end())
+    // get sources functions for target
+    const auto pos = sourcesFunctionsIndex.find(target);
+    if (pos == sourcesFunctionsIndex.end())
     {
-        if (blockCreationPolicy == BlockCreationPolicy::NoCreate)
-            return {};
-
-        auto& sourcesBlock = createSourcesBlock(target);
-        return {&sourcesBlock, sourcesBlock.defaultInsertSection};
+        qCWarning(CMAKE) << "Could not find sources function for target" << target;
+        return {};
     }
-
-    SourcesBlock* bestBlock{};
-    Section* bestSection{};
-    qsizetype bestSectionScore = std::numeric_limits<qsizetype>::min();
 
     const auto parentPath = extractPath(fileName);
 
+    auto selectBestSection = [this, &parentPath](qsizetype bestScore,
+            SourcesFunction* function, const QString& sectionName)
+    {
+        Section* bestSection{};
+
+        for (auto& section : function->mutableSections())
+        {
+            if (!sectionName.isEmpty() && section.name().compare(sectionName, Qt::CaseInsensitive) != 0)
+                continue;
+
+            const auto score = commonPrefixScore(parentPath, section);
+
+            if (score > bestScore)
+            {
+                bestSection = &section;
+                bestScore = score;
+            }
+        }
+
+        return std::pair{bestScore, bestSection};
+    };
+
+    SourcesFunction* selectedFunction{};
+    Section* selectedSection{};
+
+    // find priority function
     for (qsizetype idx : *pos)
     {
-        auto& block = sourcesBlocks[idx];
-
-        for (auto& section : block.sections)
+        if (sourcesFunctions[idx].isPreferred())
         {
-            auto score = commonPrefixScore(parentPath, section);
+            selectedFunction = &sourcesFunctions[idx];
+
+            const QString sectionName = preferedSectionName(selectedFunction->cmakeFunction().name(), fileName, mimeType);
+
+            auto [bestScore, bestSection] = selectBestSection(std::numeric_limits<qsizetype>::min(),
+                                                              selectedFunction, sectionName);
+            if (!bestSection)
+            {
+                const auto sn = !sectionName.isEmpty() ? sectionName : selectedFunction->defaultInsertSection();
+
+                selectedSection = selectedFunction->addSection({sn, false, kDefaultSeparator});
+            }
+            else
+            {
+                selectedSection = bestSection;
+            }
+
+            break;
+        }
+    }
+
+    // find best matching function/section
+    if (!selectedSection)
+    {
+        SourcesFunction* bestFunction{};
+        Section* bestSection{};
+        qsizetype bestSectionScore = std::numeric_limits<qsizetype>::min();
+
+        for (qsizetype idx : *pos)
+        {
+            auto function = &sourcesFunctions[idx];
+
+            const QString sectionName = preferedSectionName(function->cmakeFunction().name(), fileName, mimeType);
+
+            auto [score, section] = selectBestSection(bestSectionScore, function, sectionName);
+
             if (score > bestSectionScore)
             {
-                bestBlock = &block;
-                bestSection = &section;
+                bestFunction = function;
+                bestSection = section;
                 bestSectionScore = score;
             }
         }
+
+        if (bestSection)
+        {
+            selectedFunction = bestFunction;
+            selectedSection = bestSection;
+        }
     }
 
-    return {bestBlock, bestSection};
+    // get or create a fallback section
+    if (!selectedSection)
+    {
+        selectedFunction = &sourcesFunctions[pos->first()];
+        selectedSection = selectedFunction->addSection(
+                    {selectedFunction->defaultInsertSection(), false, kDefaultSeparator});
+    }
+
+    return {selectedFunction, selectedSection};
 }
 
-CMakeListsFilePrivate::SourcesBlock CMakeListsFilePrivate::readAddTargetFunction(const parser::CMakeFunctionDesc& function)
+CMakeListsFilePrivate::SourcesFunction CMakeListsFilePrivate::readTargetSourcesFunction(const parser::CMakeFunction& function)
 {
-    SourcesBlock info;
+    SourcesFunction info;
 
     const auto args = function.arguments();
     auto it = args.begin();
     if (it != args.cend())
     {
-        info.functionDesc = function;
-        info.target = *it;
-        info.sections << Section{SectionType::Invalid, {}};
+        info.setCmakeFunction(function);
+        info.setTarget(it->value());
+        info.addArgument(*it);
 
-        bool optionsDone{false};
+        Section* currentSection{};
 
         for (++it ; it != args.end(); ++it)
         {
-            if (!optionsDone &&
-                    compareStrings(it->value(),
-                                   "WIN32", "MACOSX_BUNDLE", "EXCLUDE_FROM_ALL",
-                                   "STATIC", "SHARED", "MODULE", "INTERFACE", "OBJECT",
-                                   "MANUAL_FINALIZATION"))
+            if (!it->isQuoted() && (compareStrings(it->value(), "INTERFACE", "PUBLIC", "PRIVATE")))
             {
-                info.modifiers << *it;
-                continue;
+                currentSection = info.addSection({*it});
             }
-
-            if (!optionsDone &&
-                    compareStrings(it->value(),
-                                   "CLASS_NAME", "OUTPUT_TARGETS"))
+            else if (currentSection)
             {
-                info.modifiers << *it;
-                ++it;
-                info.modifiers << *it;
-                continue;
+                currentSection->addFileArgument(*it);
             }
-
-            optionsDone = true;
-
-            const auto fileName = *it;
-            if (!fileName.value().isEmpty())
-                info.sections.last().fileNames << fileName;
         }
     }
+
+    info.setDefaultInsertSection(QStringLiteral("PRIVATE"));
+    info.finalize();
 
     return info;
 }
 
-CMakeListsFilePrivate::SourcesBlock CMakeListsFilePrivate::readTargetSourcesFunction(const parser::CMakeFunctionDesc& function)
+CMakeListsFilePrivate::SourcesFunction CMakeListsFilePrivate::readAddTargetFunction(const parser::CMakeFunction& function)
 {
-    SourcesBlock info;
+    SourcesFunction info;
 
     const auto args = function.arguments();
     auto it = args.begin();
     if (it != args.cend())
     {
-        info.functionDesc = function;
-        info.target = *it;
+        info.setCmakeFunction(function);
+        info.setTarget(it->value());
+        info.addArgument(*it);
+
+        Section* filesSection{};
+
+        // MAYBE: Ignore IMPORTED and ALIAS definitions
 
         for (++it ; it != args.end(); ++it)
         {
-            SectionType type = sectionType(*it);
+            if (!filesSection)
+            {
+                if (!it->isQuoted() &&
+                        compareStrings(it->value(),
+                                       "WIN32", "MACOSX_BUNDLE", "EXCLUDE_FROM_ALL",
+                                       "STATIC", "SHARED", "MODULE", "INTERFACE", "OBJECT",
+                                       "MANUAL_FINALIZATION"))
+                {
+                    info.addArgument(*it);
+                    continue;
+                }
 
-            if (!it->isQuoted() && (type != SectionType::Invalid))
-            {
-                info.sections << Section{type, *it};
+                if (!it->isQuoted() &&
+                        compareStrings(it->value(),
+                                       "CLASS_NAME", "OUTPUT_TARGETS"))
+                {
+                    info.addArgument(*it);
+                    ++it;
+                    info.addArgument(*it);
+                    continue;
+                }
             }
-            else if (!info.sections.isEmpty())
-            {
-                info.sections.last().fileNames << *it;
-            }
+
+            filesSection = info.addSection();
+
+            if (!it->value().isEmpty())
+                filesSection->addFileArgument(*it);
         }
     }
+
+    info.setDefaultInsertSection(QLatin1String(""));
+    info.finalize();
 
     return info;
 }
 
-CMakeListsFilePrivate::SourcesBlock CMakeListsFilePrivate::readFunction(const parser::CMakeFunctionDesc& function)
+CMakeListsFilePrivate::SourcesFunction CMakeListsFilePrivate::readAddQmlTargetFunction(const parser::CMakeFunction& function)
 {
-    SourcesBlock info;
+    qCWarning(CMAKE) << "CMake function" << function.name() << "not implemented";
+
+    SourcesFunction info;
+
+    //info.setPreferred(true);
+    //info.finalize();
+
+    return info;
+}
+
+CMakeListsFilePrivate::SourcesFunction CMakeListsFilePrivate::readFunction(const parser::CMakeFunction& function)
+{
+    SourcesFunction info;
 
     if (compareStrings(function.name(), "target_sources"))
     {
@@ -461,45 +637,18 @@ CMakeListsFilePrivate::SourcesBlock CMakeListsFilePrivate::readFunction(const pa
                             "qt_add_executable",
                             "qt_add_library",
                             "qt6_add_executable",
-                            "qt6_add_library",
-                            "qt_add_plugin",
-                            "qt6_add_plugin",
-                            "qt_add_qml_module",
-                            "qt6_add_qml_module"))
+                            "qt6_add_library"))
     {
         info = readAddTargetFunction(function);
     }
+    else if (compareStrings(function.name(),
+                            "qt_add_qml_module",
+                            "qt6_add_qml_module"))
+    {
+        info = readAddQmlTargetFunction(function);
+    }
 
     return info;
-}
-
-void CMakeListsFilePrivate::collectSourcesBlockInfo(SourcesBlock& sourcesBlock)
-{
-    Section* defaultInsertSection = nullptr;
-    for (auto it = sourcesBlock.sections.rbegin(); it != sourcesBlock.sections.rend(); ++it)
-    {
-        if (it->type == defaultSectionType)
-        {
-            defaultInsertSection = &*it;
-        }
-
-        for (const auto& fileName : it->fileNames)
-        {
-            it->commonPrefixes.insert(extractPath(fileName.value()));
-        }
-    }
-    if (!defaultInsertSection && !sourcesBlock.sections.isEmpty())
-        defaultInsertSection = &sourcesBlock.sections.last();
-    sourcesBlock.defaultInsertSection = defaultInsertSection;
-}
-
-QString CMakeListsFilePrivate::extractPath(const QString& fileName)
-{
-    const QFileInfo fi{fileName};
-    const auto path = fi.path();
-    if (path == QLatin1String("."))
-        return QLatin1String{""};
-    return path;
 }
 
 qsizetype CMakeListsFilePrivate::commonPrefixLength(const QString& path1, const QString& path2)
@@ -515,11 +664,11 @@ qsizetype CMakeListsFilePrivate::commonPrefixLength(const QString& path1, const 
 
 qsizetype CMakeListsFilePrivate::commonPrefixScore(const QString& prefix, const Section& section)
 {
-    if (section.commonPrefixes.isEmpty())
+    if (section.commonPrefixes().isEmpty())
         return -1;
 
     qsizetype bestScore = 0;
-    for (const auto& path : section.commonPrefixes)
+    for (const auto& path : section.commonPrefixes())
     {
         auto cpl = commonPrefixLength(prefix, path);
 
@@ -530,6 +679,22 @@ qsizetype CMakeListsFilePrivate::commonPrefixScore(const QString& prefix, const 
             bestScore = cpl;
     }
     return bestScore;
+}
+
+QString CMakeListsFilePrivate::preferedSectionName(const QString& functionName, const QString& fileName,
+                                                   const QMimeType& mimeType)
+{
+    auto mt = mimeType.isValid() ? mimeType : QMimeDatabase().mimeTypeForFile(fileName);
+    Q_UNUSED(mt)
+
+    if (compareStrings(functionName,
+                       "qt_add_qml_module",
+                       "qt6_add_qml_module"))
+    {
+        Q_UNIMPLEMENTED();
+    }
+
+    return {};
 }
 
 // *********************************************************************************************************************
@@ -550,23 +715,10 @@ FileBuffer* CMakeListsFile::fileBuffer() const
     return d->fileBuffer;
 }
 
-void CMakeListsFile::setDefaultSectionType(SectionType type)
-{
-    Q_D(CMakeListsFile);
-    Q_ASSERT(type != SectionType::Invalid);
-    d->defaultSectionType = type;
-}
-
 void CMakeListsFile::setSortSectionPolicy(SortSectionPolicy sortSectionPolicy)
 {
     Q_D(CMakeListsFile);
     d->sortSectionPolicy = sortSectionPolicy;
-}
-
-void CMakeListsFile::setBlockCreationPolicy(BlockCreationPolicy blockCreationPolicy)
-{
-    Q_D(CMakeListsFile);
-    d->blockCreationPolicy = blockCreationPolicy;
 }
 
 bool CMakeListsFile::isLoaded() const
@@ -584,7 +736,7 @@ bool CMakeListsFile::isDirty() const
 bool CMakeListsFile::reload()
 {
     Q_D(CMakeListsFile);
-    d->sourcesBlocks.clear();
+    d->sourcesFunctions.clear();
     return d->read();
 }
 
@@ -594,30 +746,23 @@ bool CMakeListsFile::save()
     return d->write();
 }
 
-bool CMakeListsFile::addSourceFile(const QString& target, const QString& fileName)
+bool CMakeListsFile::addSourceFile(const QString& target, const QString& fileName, const QMimeType& mimeType)
 {
     Q_D(CMakeListsFile);
 
-    auto [sourcesBlock, section] = d->findBestInsertSection(target, fileName);
-    if (!sourcesBlock)
+    auto [function, section] = d->findBestInsertSection(target, fileName, mimeType);
+    if (!section)
     {
         qCWarning(CMAKE) << "Target" << target << "has no suitable source block";
         return false;
     }
 
-    QString separator;
-    if (section->fileNames.isEmpty())
-        separator = kDefaultSeparator;
-    else
-        separator = section->fileNames.last().separator();
-
-    section->fileNames << parser::CMakeFunctionArgument{fileName, needsQuotation(fileName), separator};
+    section->addFileName(fileName);
 
     if (d->sortSectionPolicy == SortSectionPolicy::Sort)
-        d->resortSection(*section);
+        section->sortFileNames();
 
-    sourcesBlock->dirty = true;
-
+    function->setDirty();
     d->setDirty();
 
     return true;
@@ -627,92 +772,80 @@ bool CMakeListsFile::renameSourceFile(const QString& target, const QString& oldF
 {
     Q_D(CMakeListsFile);
 
-    if (!d->sourcesBlocksIndex.contains(target))
+    if (!d->sourcesFunctionsIndex.contains(target))
     {
         qCWarning(CMAKE) << "Target" << target << "not found in CMakeLists file" << d->fileBuffer->fileName();
         return false;
     }
 
-    CMakeListsFilePrivate::Section* foundSection = nullptr;
+    CMakeListsFilePrivate::SourcesFunction* changedFunction{};
+    CMakeListsFilePrivate::Section* changedSection{};
 
-    for (const auto& idx : qAsConst(d->sourcesBlocksIndex[target]))
+    for (const auto& idx : qAsConst(d->sourcesFunctionsIndex[target]))
     {
-        auto& sourcesBlock = d->sourcesBlocks[idx];
+        auto& function = d->sourcesFunctions[idx];
 
-        for (auto& section : sourcesBlock.sections)
+        for (auto& section : function.mutableSections())
         {
-            for (auto& fileName : section.fileNames)
+            if (section.renameFile(oldFileName, newFileName))
             {
-                if (fileName == oldFileName)
-                {
-                    fileName.setValue(newFileName);
-                    sourcesBlock.dirty = true;
-                    foundSection = &section;
-                    break;
-                }
+                changedFunction = &function;
+                changedSection = &section;
+                break;
             }
-
-            if (foundSection) break;
         }
-
-        if (foundSection) break;
     }
 
-    if (foundSection)
+    if (changedSection)
     {
         if (d->sortSectionPolicy == SortSectionPolicy::Sort)
-            d->resortSection(*foundSection);
+            changedSection->sortFileNames();
 
+        changedFunction->setDirty();
         d->setDirty();
     }
 
-    return foundSection;
+    return changedSection;
 }
 
 bool CMakeListsFile::removeSourceFile(const QString& target, const QString& fileName)
 {
     Q_D(CMakeListsFile);
 
-    if (!d->sourcesBlocksIndex.contains(target))
+    if (!d->sourcesFunctionsIndex.contains(target))
     {
         qCWarning(CMAKE) << "Target" << target << "not found in CMakeLists file" << d->fileBuffer->fileName();
         return false;
     }
 
-    CMakeListsFilePrivate::Section* foundSection = nullptr;
+    CMakeListsFilePrivate::SourcesFunction* changedFunction{};
+    CMakeListsFilePrivate::Section* changedSection{};
 
-    for (const auto& idx : qAsConst(d->sourcesBlocksIndex[target]))
+    for (const auto& idx : qAsConst(d->sourcesFunctionsIndex[target]))
     {
-        auto& sourcesBlock = d->sourcesBlocks[idx];
+        auto& function = d->sourcesFunctions[idx];
 
-        for (auto& section : sourcesBlock.sections)
+        for (auto& section : function.mutableSections())
         {
-            for (int i = 0; i < section.fileNames.size(); ++i)
+            if (section.removeFile(fileName))
             {
-                if (section.fileNames[i] == fileName)
-                {
-                    section.fileNames.removeAt(i);
-                    sourcesBlock.dirty = true;
-                    foundSection = &section;
-                    break;
-                }
+                changedFunction = &function;
+                changedSection = &section;
+                break;
             }
-
-            if (foundSection) break;
         }
-
-        if (foundSection) break;
     }
 
-    if (foundSection)
+    if (changedSection)
     {
         if (d->sortSectionPolicy == SortSectionPolicy::Sort)
-            d->resortSection(*foundSection);
+            changedSection->sortFileNames();
 
+        changedFunction->setDirty();
         d->setDirty();
     }
 
-    return foundSection;
+    return changedSection;
 }
 
 } // namespace cmle

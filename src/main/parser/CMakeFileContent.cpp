@@ -8,7 +8,7 @@
 
 #include <QMap>
 
-namespace cmle { namespace parser {
+namespace cmle::parser {
 
 namespace {
 
@@ -30,6 +30,8 @@ constexpr QChar scapingChar = QLatin1Char('\\');
 // *********************************************************************************************************************
 
 const QMap<QChar, QChar> CMakeFunctionArgument::scapings = whatToScape();
+
+CMakeFunctionArgument::~CMakeFunctionArgument() = default;
 
 CMakeFunctionArgument::CMakeFunctionArgument() :
     d_(new Data())
@@ -58,6 +60,17 @@ CMakeFunctionArgument::CMakeFunctionArgument(const CMakeFunctionArgument& other)
 CMakeFunctionArgument& CMakeFunctionArgument::operator=(const CMakeFunctionArgument& other)
 {
     d_ = other.d_;
+    return *this;
+}
+
+CMakeFunctionArgument::CMakeFunctionArgument(CMakeFunctionArgument&& other) :
+    d_(std::move(other.d_))
+{
+}
+
+CMakeFunctionArgument& CMakeFunctionArgument::operator=(CMakeFunctionArgument&& other)
+{
+    d_ = std::move(other.d_);
     return *this;
 }
 
@@ -91,44 +104,57 @@ QString CMakeFunctionArgument::unescapeValue(const QString& value)
 
 // *********************************************************************************************************************
 
-CMakeFunctionDesc::CMakeFunctionDesc() :
+CMakeFunction::~CMakeFunction() = default;
+
+CMakeFunction::CMakeFunction() :
     d_(new Data())
 {
 }
 
-CMakeFunctionDesc::CMakeFunctionDesc(const QString& name) :
-    CMakeFunctionDesc()
+CMakeFunction::CMakeFunction(const QString& name) :
+    CMakeFunction()
 {
     d_->name = name;
 }
 
-CMakeFunctionDesc::CMakeFunctionDesc(const CMakeFunctionDesc& other) :
+CMakeFunction::CMakeFunction(const CMakeFunction& other) :
     d_(other.d_)
 {
 }
 
-CMakeFunctionDesc& CMakeFunctionDesc::operator=(const CMakeFunctionDesc& other)
+CMakeFunction& CMakeFunction::operator=(const CMakeFunction& other)
 {
     d_ = other.d_;
     return *this;
 }
 
-void CMakeFunctionDesc::setArguments(const QList<CMakeFunctionArgument>& args)
+CMakeFunction::CMakeFunction(CMakeFunction&& other) :
+    d_(std::move(other.d_))
+{
+}
+
+CMakeFunction& CMakeFunction::operator=(CMakeFunction&& other)
+{
+    d_ = std::move(other.d_);
+    return *this;
+}
+
+void CMakeFunction::setArguments(const QList<CMakeFunctionArgument>& args)
 {
     d_->arguments = args;
 }
 
-void CMakeFunctionDesc::addArguments(const QList<CMakeFunctionArgument>& args)
+void CMakeFunction::addArguments(const QList<CMakeFunctionArgument>& args)
 {
     d_->arguments.append(args);
 }
 
-void CMakeFunctionDesc::addArgument(const CMakeFunctionArgument& arg)
+void CMakeFunction::addArgument(const CMakeFunctionArgument& arg)
 {
     d_->arguments << arg;
 }
 
-QString CMakeFunctionDesc::toString() const
+QString CMakeFunction::toString() const
 {
     QStringList args;
     args.reserve(d_->arguments.size());
@@ -149,4 +175,4 @@ QString CMakeFunctionDesc::toString() const
             QLatin1String(")");
 }
 
-}} // namespace cmle::parser
+} // namespace cmle::parser
