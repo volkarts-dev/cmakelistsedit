@@ -237,11 +237,10 @@ void CMakeListsFilePrivate::SourcesFunction::setPreferred(bool preferred)
 
 // *********************************************************************************************************************
 
-CMakeListsFilePrivate::CMakeListsFilePrivate(CMakeListsFile* q, FileBuffer* _fileBuffer) :
+CMakeListsFilePrivate::CMakeListsFilePrivate(CMakeListsFile* q, const QByteArray& fileBuffer) :
     q_ptr{q},
-    fileBuffer{_fileBuffer},
+    originalFileContent{fileBuffer},
     loaded{false},
-    dirty{false},
     sortSectionPolicy{SortSectionPolicy::NoSort}
 {
     read();
@@ -266,24 +265,17 @@ parser::CMakeFunctionArgument CMakeListsFilePrivate::sectionTypeArgument(const Q
     return {sectionName, false, kDefaultSeparator};
 }
 
-void CMakeListsFilePrivate::setDirty()
-{
-    Q_Q(CMakeListsFile);
-    dirty = true;
-    emit q->changed();
-}
-
 bool CMakeListsFilePrivate::read()
 {
     loaded = [this]() {
         bool error{};
-        auto contents = parser::readCMakeFile(fileBuffer->content(), &error);
+        auto contents = parser::readCMakeFile(originalFileContent, &error);
         if (error)
             return false;
 
         // TODO read target definition blocks
 
-        if (!readInSourcesFunctions(contents))
+        if (!readInFunctions(contents))
             return false;
 
         return true;
@@ -292,59 +284,74 @@ bool CMakeListsFilePrivate::read()
     return loaded;
 }
 
-bool CMakeListsFilePrivate::write()
+QByteArray CMakeListsFilePrivate::write()
 {
-    RawDataReader reader(fileBuffer->content());
+    RawDataReader reader(originalFileContent);
     QByteArray line;
-
-    int lineOffset = 0;
 
     QByteArray output;
 
     for (auto& sourcesFunction : sourcesFunctions)
     {
-        // convert section to argument list
-        writeBackSourcesFunction(sourcesFunction);
+        auto function = [&sourcesFunction]() {
+            if (!sourcesFunction.isDirty())
+                return sourcesFunction.cmakeFunction();
 
-        auto& func = sourcesFunction.mutableCmakeFunction();
+            QList<parser::CMakeFunctionArgument> newArguments;
+            for (const auto& argument : qAsConst(sourcesFunction.arguments()))
+            {
+                if (argument.sectionIndex == -1)
+                {
+                    newArguments << argument.argument;
+                }
+                else
+                {
+                    const auto& section = sourcesFunction.sections()[argument.sectionIndex];
+
+                    if (section.nameArgument())
+                        newArguments << section.nameArgument();
+
+                    for (const auto& fileName : section.fileNames())
+                    {
+                        newArguments << fileName;
+                    }
+                }
+            }
+            parser::CMakeFunction newFunction{sourcesFunction.cmakeFunction()};
+            newFunction.setArguments(newArguments);
+
+            return newFunction;
+        }();
 
         // advance to source block start line
-        while (!reader.eof() && (reader.currentLine() < func.startLine()))
+        while (!reader.eof() && (reader.currentLine() < function.startLine()))
         {
             line = reader.readLine();
             output.append(line);
         }
 
         // advance to source block start column
-        if (func.startColumn() > 1 && !reader.eof())
+        if (function.startColumn() > 1 && !reader.eof())
         {
             line = reader.readLine();
-            output.append(line.data(), func.startColumn() - 1);
+            output.append(line.data(), function.startColumn() - 1);
         }
 
         // output actual sources block
-        auto funcOutput = sourcesFunction.cmakeFunction().toString();
+        const auto funcOutput = function.toString();
         output.append(funcOutput.toLocal8Bit());
 
         // skip over original source block
-        while (!reader.eof() && (reader.currentLine() <= func.endLine()))
+        while (!reader.eof() && (reader.currentLine() <= function.endLine()))
         {
             line  = reader.readLine();
         }
 
         // output remainder of last original line
-        if (int lineRest = static_cast<int>(line.size()) - func.endColumn(); lineRest > 0)
+        if (int lineRest = static_cast<int>(line.size()) - function.endColumn(); lineRest > 0)
         {
-            output.append(line.data() + line.size() - lineRest, lineRest); // NOLINT(pro-bounds-pointer-arithmetic)
+            output.append(line.data() + line.size() - lineRest, lineRest);
         }
-
-        // remember new block position
-        auto [newRowCount, newEndColumn] = countRows(funcOutput);
-        int oldRowCount = func.endLine() - func.startLine() + 1;
-        func.setStartLine(func.startLine() + lineOffset);
-        func.setEndLine(func.startLine() + newRowCount - 1);
-        func.setEndColumn(newEndColumn);
-        lineOffset += newRowCount - oldRowCount;
     }
 
     // output reamainder of file
@@ -354,15 +361,10 @@ bool CMakeListsFilePrivate::write()
         output.append(line);
     }
 
-    // write back to file
-    fileBuffer->setContent(output);
-
-    dirty = false;
-
-    return true;
+    return output;
 }
 
-void CMakeListsFilePrivate::addSourcesFunctionIndex(const QString& target, qsizetype index)
+void CMakeListsFilePrivate::addFunctionIndex(const QString& target, qsizetype index)
 {
     auto pos = sourcesFunctionsIndex.find(target);
     if (pos == sourcesFunctionsIndex.end())
@@ -370,7 +372,7 @@ void CMakeListsFilePrivate::addSourcesFunctionIndex(const QString& target, qsize
     pos->append(index);
 }
 
-bool CMakeListsFilePrivate::readInSourcesFunctions(const parser::CMakeFileContent& cmakeFileContent)
+bool CMakeListsFilePrivate::readInFunctions(const parser::CMakeFileContent& cmakeFileContent)
 {
     for (const auto& func : cmakeFileContent)
     {
@@ -380,43 +382,10 @@ bool CMakeListsFilePrivate::readInSourcesFunctions(const parser::CMakeFileConten
 
         sourcesFunctions << function;
 
-        addSourcesFunctionIndex(function.target(), sourcesFunctions.size() - 1);
+        addFunctionIndex(function.target(), sourcesFunctions.size() - 1);
     }
 
     return true;
-}
-
-void CMakeListsFilePrivate::writeBackSourcesFunction(SourcesFunction& sourcesFunction)
-{
-    if (!sourcesFunction.isDirty())
-        return;
-
-    QList<parser::CMakeFunctionArgument> newArguments;
-    for (const auto& argument : qAsConst(sourcesFunction.arguments()))
-    {
-        if (argument.sectionIndex == -1)
-        {
-            newArguments << argument.argument;
-        }
-        else
-        {
-            const auto& section = sourcesFunction.sections()[argument.sectionIndex];
-
-            if (section.nameArgument())
-                newArguments << section.nameArgument();
-
-            for (const auto& fileName : section.fileNames())
-            {
-                newArguments << fileName;
-            }
-        }
-    }
-
-    parser::CMakeFunction newFunction{sourcesFunction.cmakeFunction()};
-    newFunction.setArguments(newArguments);
-    sourcesFunction.setCmakeFunction(newFunction);
-
-    sourcesFunction.setDirty(false);
 }
 
 CMakeListsFilePrivate::SectionSearchResult CMakeListsFilePrivate::findBestInsertSection(
@@ -437,7 +406,7 @@ CMakeListsFilePrivate::SectionSearchResult CMakeListsFilePrivate::findBestInsert
     {
         Section* bestSection{};
 
-        for (auto& section : function->mutableSections())
+        for (auto& section : function->sections())
         {
             if (!sectionName.isEmpty() && section.name().compare(sectionName, Qt::CaseInsensitive) != 0)
                 continue;
@@ -596,9 +565,9 @@ CMakeListsFilePrivate::SourcesFunction CMakeListsFilePrivate::readAddTargetFunct
                     info.addArgument(*it);
                     continue;
                 }
-            }
 
-            filesSection = info.addSection();
+                filesSection = info.addSection();
+            }
 
             if (!it->value().isEmpty())
                 filesSection->addFileArgument(*it);
@@ -699,7 +668,7 @@ QString CMakeListsFilePrivate::preferedSectionName(const QString& functionName, 
 
 // *********************************************************************************************************************
 
-CMakeListsFile::CMakeListsFile(FileBuffer* fileBuffer, QObject* parent) :
+CMakeListsFile::CMakeListsFile(const QByteArray& fileBuffer, QObject* parent) :
     QObject{parent},
     d_ptr{new CMakeListsFilePrivate{this, fileBuffer}}
 {
@@ -707,12 +676,6 @@ CMakeListsFile::CMakeListsFile(FileBuffer* fileBuffer, QObject* parent) :
 
 CMakeListsFile::~CMakeListsFile()
 {
-}
-
-FileBuffer* CMakeListsFile::fileBuffer() const
-{
-    Q_D(const CMakeListsFile);
-    return d->fileBuffer;
 }
 
 void CMakeListsFile::setSortSectionPolicy(SortSectionPolicy sortSectionPolicy)
@@ -727,23 +690,15 @@ bool CMakeListsFile::isLoaded() const
     return d->loaded;
 }
 
-bool CMakeListsFile::isDirty() const
+bool CMakeListsFile::hasChangedBlocks() const
 {
     Q_D(const CMakeListsFile);
-    return d->dirty;
-}
-
-bool CMakeListsFile::reload()
-{
-    Q_D(CMakeListsFile);
-    d->sourcesFunctions.clear();
-    return d->read();
-}
-
-bool CMakeListsFile::save()
-{
-    Q_D(CMakeListsFile);
-    return d->write();
+    for (const auto& func : d->sourcesFunctions)
+    {
+        if (func.isDirty())
+            return true;
+    }
+    return false;
 }
 
 bool CMakeListsFile::addSourceFile(const QString& target, const QString& fileName, const QMimeType& mimeType)
@@ -763,7 +718,6 @@ bool CMakeListsFile::addSourceFile(const QString& target, const QString& fileNam
         section->sortFileNames();
 
     function->setDirty();
-    d->setDirty();
 
     return true;
 }
@@ -774,7 +728,7 @@ bool CMakeListsFile::renameSourceFile(const QString& target, const QString& oldF
 
     if (!d->sourcesFunctionsIndex.contains(target))
     {
-        qCWarning(CMAKE) << "Target" << target << "not found in CMakeLists file" << d->fileBuffer->fileName();
+        qCWarning(CMAKE) << "Target" << target << "not found in CMakeLists file";
         return false;
     }
 
@@ -785,7 +739,7 @@ bool CMakeListsFile::renameSourceFile(const QString& target, const QString& oldF
     {
         auto& function = d->sourcesFunctions[idx];
 
-        for (auto& section : function.mutableSections())
+        for (auto& section : function.sections())
         {
             if (section.renameFile(oldFileName, newFileName))
             {
@@ -802,7 +756,6 @@ bool CMakeListsFile::renameSourceFile(const QString& target, const QString& oldF
             changedSection->sortFileNames();
 
         changedFunction->setDirty();
-        d->setDirty();
     }
 
     return changedSection;
@@ -814,7 +767,7 @@ bool CMakeListsFile::removeSourceFile(const QString& target, const QString& file
 
     if (!d->sourcesFunctionsIndex.contains(target))
     {
-        qCWarning(CMAKE) << "Target" << target << "not found in CMakeLists file" << d->fileBuffer->fileName();
+        qCWarning(CMAKE) << "Target" << target << "not found in CMakeLists file";
         return false;
     }
 
@@ -825,7 +778,7 @@ bool CMakeListsFile::removeSourceFile(const QString& target, const QString& file
     {
         auto& function = d->sourcesFunctions[idx];
 
-        for (auto& section : function.mutableSections())
+        for (auto& section : function.sections())
         {
             if (section.removeFile(fileName))
             {
@@ -842,10 +795,15 @@ bool CMakeListsFile::removeSourceFile(const QString& target, const QString& file
             changedSection->sortFileNames();
 
         changedFunction->setDirty();
-        d->setDirty();
     }
 
     return changedSection;
+}
+
+QByteArray CMakeListsFile::write()
+{
+    Q_D(CMakeListsFile);
+    return d->write();
 }
 
 } // namespace cmle

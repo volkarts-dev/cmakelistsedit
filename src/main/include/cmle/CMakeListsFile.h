@@ -5,6 +5,7 @@
 
 #include <QMimeType>
 #include <QObject>
+#include <QPoint>
 
 namespace cmle {
 
@@ -22,25 +23,27 @@ class CMakeListsFile : public QObject
     Q_OBJECT
 
 public:
-    CMakeListsFile(FileBuffer* fileBuffer, QObject* parent = nullptr);
-    ~CMakeListsFile() override;
+    struct ChangedBlock
+    {
+        QPoint origStart;
+        QPoint origEnd;
+        QString newContent;
+    };
 
-    FileBuffer* fileBuffer() const;
+public:
+    CMakeListsFile(const QByteArray& fileBuffer, QObject* parent = nullptr);
+    ~CMakeListsFile() override;
 
     void setSortSectionPolicy(SortSectionPolicy sortSectionPolicy);
 
     bool isLoaded() const;
-    bool isDirty() const;
-
-    bool reload();
-    bool save();
+    bool hasChangedBlocks() const;
 
     bool addSourceFile(const QString& target, const QString& fileName, const QMimeType& mimeType = {});
     bool renameSourceFile(const QString& target, const QString& oldFileName, const QString& newFileName);
     bool removeSourceFile(const QString& target, const QString& fileName);
 
-signals:
-    void changed();
+    QByteArray write();
 
 private:
     QScopedPointer<CMakeListsFilePrivate> d_ptr;

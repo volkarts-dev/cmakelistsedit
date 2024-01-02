@@ -64,11 +64,10 @@ private:
         const QString& defaultInsertSection() const { return defaultInsertSection_; }
         bool isPreferred() const { return preferred_; }
 
+        QList<Section>& sections() { return sections_; }
+
         void setDirty(bool _dirty = true) { dirty_ = _dirty; }
         bool isDirty() const { return dirty_; }
-
-        parser::CMakeFunction& mutableCmakeFunction() { return cmakeFunction_; }
-        QList<Section>& mutableSections() { return sections_; }
 
         void setCmakeFunction(parser::CMakeFunction cmakeFunction);
         void setTarget(QString target);
@@ -91,27 +90,23 @@ private:
     using SectionSearchResult = std::tuple<SourcesFunction*, Section*>;
 
 public:
-    CMakeListsFilePrivate(CMakeListsFile* q, FileBuffer* _fileBuffer);
+    CMakeListsFilePrivate(CMakeListsFile* q, const QByteArray& fileBuffer);
 
     static QString sectionName(const parser::CMakeFunctionArgument& arg);
 
     static parser::CMakeFunctionArgument sectionTypeArgument(const QString& sectionName);
 
-    void setDirty();
+    QByteArray write();
 
-    bool read();
+    void addFunctionIndex(const QString& target, qsizetype index);
 
-    bool write();
-
-    void addSourcesFunctionIndex(const QString& target, qsizetype index);
-
-    bool readInSourcesFunctions(const parser::CMakeFileContent& cmakeFileContent);
-
-    void writeBackSourcesFunction(SourcesFunction& sourcesFunction);
+    bool readInFunctions(const parser::CMakeFileContent& cmakeFileContent);
 
     SectionSearchResult findBestInsertSection(const QString& target, const QString& fileName, const QMimeType& mimeType);
 
 private:
+    bool read();
+
     SourcesFunction readTargetSourcesFunction(const parser::CMakeFunction& function);
     SourcesFunction readAddTargetFunction(const parser::CMakeFunction& function);
     SourcesFunction readAddQmlTargetFunction(const parser::CMakeFunction& function);
@@ -129,9 +124,8 @@ private:
     Q_DECLARE_PUBLIC(CMakeListsFile)
 
 public:
-    FileBuffer* fileBuffer;
+    QByteArray originalFileContent;
     bool loaded;
-    bool dirty;
     QList<SourcesFunction> sourcesFunctions;
     QMap<QString, QList<qsizetype>> sourcesFunctionsIndex;
     SortSectionPolicy sortSectionPolicy;
