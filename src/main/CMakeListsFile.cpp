@@ -4,7 +4,6 @@
 #include "CMakeListsFile_p.h"
 
 #include "parser/CMakeListsParser.h"
-#include <cmle/FileBuffer.h>
 #include <QFile>
 #include <QFileInfo>
 #include <QLoggingCategory>

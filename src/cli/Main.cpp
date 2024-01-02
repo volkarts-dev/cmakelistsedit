@@ -4,8 +4,8 @@
 #include <iostream>
 
 #include <cmle/CMakeListsFile.h>
-#include <cmle/StandardFileBuffer.h>
 #include <QCommandLineParser>
+#include <QFile>
 
 namespace {
 
@@ -151,14 +151,14 @@ int main(int argc, char* argv[])
             Q_UNREACHABLE();
     }
 
-    cmle::StandardFileBuffer fileBuffer(options.cmlFile);
-    if (!fileBuffer.load())
+    QFile fileBuffer{options.cmlFile};
+    if (!fileBuffer.open(QFile::ReadOnly))
     {
-        std::cerr << "Could not open CMakeLists file" << std::endl;
+        std::cerr << "CMakeLists file does not exists" << std::endl;
         return 1;
     }
 
-    cmle::CMakeListsFile cmakeListsFile(&fileBuffer);
+    cmle::CMakeListsFile cmakeListsFile{fileBuffer.readAll()};
     if (!cmakeListsFile.isLoaded())
     {
         std::cerr << "Could parse CMakeLists file" << std::endl;
@@ -187,9 +187,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    cmakeListsFile.save();
+    const auto output = cmakeListsFile.write();
 
-    std::cout.write(fileBuffer.content().constData(), fileBuffer.content().size());
+    std::cout.write(output.constData(), output.size());
 
     return 0;
 }

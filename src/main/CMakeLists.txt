@@ -1,12 +1,7 @@
 qt_add_library(main STATIC
-    include/cmle/ByteArrayFileBuffer.h
     include/cmle/CMakeListsFile.h
-    include/cmle/FileBuffer.h
-    include/cmle/StandardFileBuffer.h
-    ByteArrayFileBuffer.cpp
-    CMakeListsFile.cpp
     CMakeListsFile_p.h
-    StandardFileBuffer.cpp
+    CMakeListsFile.cpp
 )
 
 add_library(cmle::cmle ALIAS main)

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <cmle/CMakeListsFile.h>
-#include <cmle/FileBuffer.h>
 #include <QtTest>
 #include <iostream>
 
@@ -20,58 +19,13 @@ QString resourceFile(const char* name)
     return QLatin1String(RESOURCE_DIR) + QLatin1Char('/') + QLatin1String(name);
 }
 
-
-class TestFileBuffer : public cmle::FileBuffer
-{
-public:
-    explicit TestFileBuffer(QString fileName = {}) :
-        fileName_{std::move(fileName)}
-    {
-    }
-
-    QString fileName() const override
-    {
-        return {};
-    }
-
-    bool load()
-    {
-        Q_ASSERT(!fileName_.isEmpty());
-
-        QFile file(fileName_);
-        if (!file.open(QFile::ReadOnly))
-        {
-            qCritical() << "Could not open" << fileName_ << "for reading";
-            return false;
-        }
-
-        fileContent_ = file.readAll();
-        if (fileContent_.isEmpty())
-        {
-            qCritical() << "File" << fileName_ << "is empty or error while reading";
-            return false;
-        }
-
-        return true;
-    }
-
-    QByteArray content() const override { return fileContent_; }
-
-    void setContent(const QByteArray& content) override
-    {
-        fileContent_ = content;
-    }
-
-private:
-    QString fileName_;
-    QByteArray fileContent_;
-};
-
 } // namespace
 
 #define FILE_BUFFER(fileName) \
-    QScopedPointer<TestFileBuffer> fileBuffer{new TestFileBuffer{resourceFile(fileName)}}; \
-    QVERIFY(fileBuffer->load())
+    QFile listsFile{resourceFile(fileName)}; \
+    QVERIFY(listsFile.open(QFile::ReadOnly)); \
+    QByteArray fileBuffer{listsFile.readAll()}; \
+    QVERIFY(!fileBuffer.isEmpty())
 
 #define CMAKE_FILE(fileName) \
     FILE_BUFFER(fileName); \
@@ -79,7 +33,7 @@ private:
     QVERIFY(file.isLoaded())
 
 #define COMPARE_FILE(fileName) \
-    QCOMPARE(fileBuffer->content(), fileData(resourceFile(fileName)))
+    QCOMPARE(fileBuffer, fileData(resourceFile(fileName)))
 
 class CMakeListsFileTest : public QObject
 {
@@ -100,7 +54,6 @@ private slots:
         FILE_BUFFER("no_source_block.cmake");
         cmle::CMakeListsFile file{fileBuffer.data()};
         QVERIFY(file.isLoaded());
-        QVERIFY(!file.isDirty());
     }
 
     void openParseError()
@@ -109,7 +62,6 @@ private slots:
         QTest::ignoreMessage(QtCriticalMsg, QRegularExpression(QStringLiteral("^Error while parsing")));
         cmle::CMakeListsFile file{fileBuffer.data()};
         QVERIFY(!file.isLoaded());
-        QVERIFY(!file.isDirty());
     }
 
     void addToBestFitNoPrefix()
@@ -117,7 +69,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-no_prefix.cmake");
     }
 
@@ -126,7 +78,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("abc/Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-same_prefix.cmake");
     }
 
@@ -135,7 +87,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("xyz/Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-different_prefix.cmake");
     }
 
@@ -144,7 +96,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("abc/xyz/Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-partial_prefix_1.cmake");
     }
 
@@ -153,7 +105,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("def/Atest1.cpp"), cppSrcMimeType);
         COMPARE_FILE("two_source_blocks.cmake");
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-partial_prefix_2.cmake");
     }
 
@@ -162,7 +114,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"), cppSrcMimeType);
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-no_prefix_sorted.cmake");
     }
 
@@ -170,7 +122,7 @@ private slots:
     {
         CMAKE_FILE("no_source_block.cmake");
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"), cppSrcMimeType);
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("no_source_block-default.cmake");
     }
 
@@ -178,7 +130,7 @@ private slots:
     {
         CMAKE_FILE("two_source_blocks.cmake");
         file.removeSourceFile(QStringLiteral("main"), QStringLiteral("CMakeListsFile.cpp"));
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-remove_top.cmake");
     }
 
@@ -186,7 +138,7 @@ private slots:
     {
         CMAKE_FILE("two_source_blocks.cmake");
         file.removeSourceFile(QStringLiteral("main"), QStringLiteral("abc/DefaultFileBuffer.cpp"));
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-remove_bottom.cmake");
     }
 
@@ -195,7 +147,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
         file.removeSourceFile(QStringLiteral("main"), QStringLiteral("abc/DefaultFileBuffer.cpp"));
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-remove_bottom_sorted.cmake");
     }
 
@@ -204,7 +156,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.renameSourceFile(QStringLiteral("main"), QStringLiteral("CMakeListsFile.cpp"),
                               QStringLiteral("Atest1.cpp"));
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-rename_top.cmake");
     }
 
@@ -213,7 +165,7 @@ private slots:
         CMAKE_FILE("two_source_blocks.cmake");
         file.renameSourceFile(QStringLiteral("main"), QStringLiteral("abc/DefaultFileBuffer.cpp"),
                               QStringLiteral("Atest1.cpp"));
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-rename_bottom.cmake");
     }
 
@@ -223,7 +175,7 @@ private slots:
         file.setSortSectionPolicy(cmle::SortSectionPolicy::Sort);
         file.renameSourceFile(QStringLiteral("main"), QStringLiteral("abc/DefaultFileBuffer.cpp"),
                               QStringLiteral("Atest1.cpp"));
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("two_source_blocks-rename_bottom_sorted.cmake");
     }
 
@@ -231,7 +183,7 @@ private slots:
     {
         CMAKE_FILE("empty_source_block.cmake");
         file.addSourceFile(QStringLiteral("main"), QStringLiteral("Atest1.cpp"), cppSrcMimeType);
-        file.save();
+        fileBuffer = file.write();
         COMPARE_FILE("empty_source_block-add.cmake");
     }
 
